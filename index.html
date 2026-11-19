@@ -1,0 +1,1208 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kozmic bluez</title>
+<meta name="theme-color" content="#070404">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Spirax&family=Jost:wght@300;400;500&family=Delius&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--hh:86px;--cream:#efe3cf;--ink:#040303}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--ink)}
+body{color:var(--cream);font-family:'Jost',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+
+/* ---------- header ---------- */
+header{position:fixed;top:0;left:0;right:0;height:var(--hh);z-index:22;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+  column-gap:clamp(28px,4.4vw,76px);padding:0 24px;background:var(--ink)}
+header::after{content:"";position:absolute;left:0;right:0;top:100%;height:clamp(76px,11.5vh,124px);pointer-events:none;transition:opacity .6s;
+  background:linear-gradient(var(--ink) 0%,rgba(4,3,3,.94) 8%,rgba(4,3,3,.84) 17%,rgba(4,3,3,.7) 27%,rgba(4,3,3,.54) 38%,rgba(4,3,3,.38) 50%,
+    rgba(4,3,3,.24) 62%,rgba(4,3,3,.13) 74%,rgba(4,3,3,.055) 86%,rgba(4,3,3,0) 100%)}
+body.reading header::after{opacity:0}
+body.reading header{background:transparent;transition:background .6s}
+header{transition:background .6s}
+#credit{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom));z-index:12;text-align:center;pointer-events:none;
+  font-size:10.5px;font-weight:300;letter-spacing:.2em;color:rgba(239,227,207,.42);transition:opacity .5s}
+#credit span{margin:0 .5em;opacity:.6}
+body.reading #credit,body.menu #credit{opacity:0}
+#shelfPager{display:none;position:fixed;left:0;right:0;bottom:calc(42px + env(safe-area-inset-bottom));z-index:12;flex-direction:column;align-items:center;gap:10px;pointer-events:none}
+#shelfPager .sp-name{font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;color:rgba(239,227,207,.7);padding-left:.32em;min-height:1em}
+#shelfPager .sp-lines{display:flex;gap:6px;pointer-events:auto}
+#shelfPager button{border:0;background:none;padding:10px 0;cursor:pointer}
+#shelfPager i{display:block;width:16px;height:1px;background:rgba(239,227,207,.3);transition:width .45s cubic-bezier(.2,.7,.2,1),background .45s}
+#shelfPager button.on i{width:34px;background:var(--cream)}
+body.reading #shelfPager,body.menu #shelfPager{opacity:0;pointer-events:none}
+#fadeB{position:fixed;left:0;right:0;height:clamp(90px,16vh,170px);z-index:9;pointer-events:none;
+  background:linear-gradient(rgba(4,3,3,0),rgba(4,3,3,.35) 35%,rgba(4,3,3,.8) 70%,var(--ink))}
+#fadeB::after{content:"";position:absolute;left:0;right:0;top:100%;height:100vh;background:var(--ink)}
+.logo{margin:0;font-family:'Spirax',cursive;font-weight:400;font-size:clamp(30px,3.4vw,46px);line-height:1;letter-spacing:.04em;color:var(--cream);
+  text-shadow:0 0 22px rgba(255,214,170,.18)}
+.logo a{color:inherit;text-decoration:none}
+nav{display:flex;gap:clamp(16px,2.6vw,46px);white-space:nowrap;min-width:0}
+nav.l{justify-content:flex-end}
+nav.r{justify-content:flex-start}
+nav a{position:relative;font-size:12px;font-weight:400;letter-spacing:.3em;text-transform:uppercase;text-decoration:none;color:rgba(239,227,207,.58);
+  padding:4px 0 5px .3em;transition:color .45s ease,text-shadow .45s ease;cursor:pointer}
+nav a::after{content:"";position:absolute;left:.3em;right:0;bottom:0;height:1px;background:currentColor;transform:scaleX(0);transform-origin:50% 50%;transition:transform .55s cubic-bezier(.2,.7,.2,1)}
+nav a:hover,nav a:focus-visible,nav a.hot,nav a.cur{color:#fff4e4;text-shadow:0 0 12px rgba(255,220,180,.35);outline:none}
+nav a:hover::after,nav a:focus-visible::after,nav a.cur::after{transform:scaleX(1)}
+
+/* ---------- scene ---------- */
+#viewport{position:fixed;top:var(--hh);left:0;right:0;bottom:0;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#viewport::-webkit-scrollbar{display:none}
+#sizer{position:relative;height:100%}
+#stage{position:absolute;left:0;top:0;width:1672px;height:941px;transform-origin:0 0;overflow:hidden}
+#stage img{user-select:none;-webkit-user-drag:none}
+#stage>.bg{position:absolute;inset:0;width:1672px;height:941px;display:block}
+.edge{position:absolute;top:0;bottom:0;width:46px;pointer-events:none;z-index:9}
+.edge.l{left:0;background:linear-gradient(90deg,var(--ink),rgba(4,3,3,0))}
+.edge.r{right:0;background:linear-gradient(270deg,var(--ink),rgba(4,3,3,0))}
+
+.win{position:absolute;pointer-events:none}
+.win canvas{position:absolute;inset:0;width:100%;height:100%}
+.win canvas.streaks{opacity:1}
+.win.sill canvas{filter:blur(1.1px);opacity:.75}
+#tail{position:absolute;pointer-events:none;z-index:2}
+
+.hole,.refl,.nb,#frame{position:absolute}
+.hole{pointer-events:none;z-index:1}
+.refl{pointer-events:none;z-index:1;opacity:0;transition:opacity .6s ease}
+.rf{position:absolute;pointer-events:none;z-index:2;transition:opacity .6s ease}
+.rf.gone{opacity:0}
+.refl.on{opacity:1}
+.nbv{position:absolute;inset:0;pointer-events:none;transform:translateY(0);
+  filter:brightness(1) drop-shadow(0 0 0 rgba(255,222,186,0));
+  transition:transform .55s cubic-bezier(.2,.7,.2,1),filter .55s ease;will-change:transform}
+.nbv img{position:absolute;inset:0;width:100%;height:100%;display:block}
+.lab{position:absolute;display:flex;align-items:center;justify-content:center;pointer-events:none;
+  font-family:'Jost',sans-serif;font-weight:500;text-transform:lowercase;color:#17110f;white-space:nowrap;letter-spacing:.09em;padding-left:.09em;
+  -webkit-font-smoothing:antialiased;text-rendering:geometricPrecision}
+.nb .lab{font-size:19.5px}
+.nb{z-index:3;cursor:pointer;outline:none}
+.nb:hover .nbv,.nb:focus-visible .nbv,.nb.hot .nbv{transform:translateY(-9px);
+  filter:brightness(1.1) drop-shadow(0 0 9px rgba(255,222,186,.42)) drop-shadow(0 12px 10px rgba(0,0,0,.55))}
+.nb.taken{visibility:hidden}
+#frame{z-index:3;cursor:pointer;outline:none;transform:translateY(0);transition:filter .55s ease,transform .55s cubic-bezier(.2,.7,.2,1);will-change:transform}
+#frame:hover,#frame:focus-visible,#frame.hot{transform:translateY(-9px);filter:brightness(1.08) drop-shadow(0 0 10px rgba(255,236,214,.4)) drop-shadow(0 12px 10px rgba(0,0,0,.55))}
+
+/* ---------- notebook reader ---------- */
+#reader{position:fixed;inset:0;z-index:20;pointer-events:none;perspective:2000px;perspective-origin:50% 38%}
+#reader.active{pointer-events:auto}
+#dim{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(22,13,9,.74),rgba(4,2,2,.93));opacity:0;transition:opacity .8s ease}
+#reader.active #dim{opacity:1}
+#close{position:fixed;top:calc(var(--hh) + 14px);right:24px;z-index:25;width:44px;height:44px;border-radius:50%;border:1px solid rgba(239,227,207,.3);
+  background:rgba(18,12,10,.55);font-size:0;padding:0;cursor:pointer;opacity:0;transition:opacity .45s,border-color .3s;pointer-events:none}
+.xbtn::before,.xbtn::after{content:"";position:absolute;left:50%;top:50%;width:46%;height:1.5px;border-radius:1px;background:currentColor;transform:translate(-50%,-50%) rotate(45deg)}
+.xbtn::after{transform:translate(-50%,-50%) rotate(-45deg)}
+#close:hover{border-color:rgba(239,227,207,.7)}
+#pager{position:fixed;left:50%;bottom:clamp(14px,3.2vh,34px);transform:translateX(-50%);z-index:25;display:flex;align-items:center;gap:22px;
+  opacity:0;transition:opacity .45s;pointer-events:none;font-size:12px;font-weight:400;letter-spacing:.28em;text-transform:uppercase;color:rgba(239,227,207,.7);white-space:nowrap}
+#pager button{background:none;border:0;font-size:22px;line-height:1;padding:4px 10px;cursor:pointer;color:rgba(239,227,207,.75);transition:color .3s,opacity .3s}
+#pager button:hover{color:#fff4e4}
+#pager button:disabled{opacity:.2;cursor:default}
+#nextnb{position:fixed;right:24px;top:50%;transform:translateY(-50%);z-index:25;display:flex;flex-direction:column;align-items:center;gap:10px;
+  opacity:0;pointer-events:none;transition:opacity .45s}
+#reader.ready #nextnb.on{opacity:1;pointer-events:auto}
+#nextnb button{position:relative;width:44px;height:44px;border-radius:50%;border:1px solid rgba(239,227,207,.3);background:rgba(18,12,10,.55);
+  color:var(--cream);font-size:0;padding:0;cursor:pointer;transition:border-color .3s}
+#nextnb button:hover{border-color:rgba(239,227,207,.7)}
+#nextnb button::before{content:"";position:absolute;left:29%;top:50%;width:42%;height:1.5px;border-radius:1px;background:currentColor;transform:translateY(-50%)}
+#nextnb button::after{content:"";position:absolute;left:52%;top:50%;width:21%;height:21%;border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;
+  border-radius:1px;transform:translate(-30%,-50%) rotate(45deg)}
+#nextnb .nnl{font-size:10px;font-weight:300;letter-spacing:.28em;padding-left:.28em;text-transform:uppercase;color:rgba(239,227,207,.65);cursor:pointer}
+@media (max-width:860px){ #nextnb{right:10px} #nextnb .nnl{display:none} }
+#pager .num{font-variant-numeric:tabular-nums;letter-spacing:.16em;opacity:.65;font-weight:300}
+#reader.ready #close,#reader.ready #pager{opacity:1;pointer-events:auto}
+
+.book{position:absolute;left:0;top:0;transform-style:preserve-3d;display:none}
+.book.on{display:block}
+.shadow{position:absolute;left:2%;right:-3%;bottom:-5%;height:9%;border-radius:50%;background:radial-gradient(closest-side,rgba(0,0,0,.7),transparent);
+  transform:translateZ(calc(var(--d) * -1.6));filter:blur(6px)}
+.backcover{position:absolute;inset:0;border-radius:4px 10px 10px 4px;transform:translateZ(calc(var(--d) * -1));background-size:cover;background-position:center;
+  box-shadow:0 28px 54px rgba(0,0,0,.65),0 6px 14px rgba(0,0,0,.5)}
+.block{position:absolute;top:var(--it);bottom:var(--it);left:0;right:var(--ir);transform-style:preserve-3d}
+.block .edgeR{position:absolute;top:0;bottom:0;right:0;width:var(--d);transform-origin:100% 50%;transform:rotateY(-90deg);
+  background:linear-gradient(90deg,rgba(0,0,0,.2),transparent 30%),repeating-linear-gradient(90deg,var(--edge1) 0 1px,var(--edge2) 1px 2.2px)}
+.block .edgeB{position:absolute;left:0;right:0;bottom:0;height:var(--d);transform-origin:50% 100%;transform:rotateX(90deg);
+  background:repeating-linear-gradient(var(--edge1) 0 1px,var(--edge2) 1px 2.2px)}
+
+.leaves{position:absolute;inset:0;transform-style:preserve-3d}
+.leaf{position:absolute;inset:0;transform-origin:0 50%;transform-style:preserve-3d}
+.face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.face.back{transform:rotateY(180deg)}
+.fshade{position:absolute;inset:0;pointer-events:none;opacity:0;border-radius:inherit}
+.face.front .fshade{background:linear-gradient(90deg,rgba(30,18,8,.55),rgba(30,18,8,.15) 60%,rgba(30,18,8,.3))}
+.face.back .fshade{background:linear-gradient(270deg,rgba(30,18,8,.55),rgba(30,18,8,.15) 60%,rgba(30,18,8,.3))}
+
+/* paper */
+.sheet{position:absolute;inset:0;overflow:hidden;background:var(--paper)}
+.sheet .pat{position:absolute;inset:0}
+.sheet::before,.sheet::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:2}
+.sheet.right{border-radius:1px 5px 5px 1px;box-shadow:1px 0 0 var(--edge1),2px 1px 0 var(--edge2),3px 1px 0 var(--edge1),4px 2px 0 var(--edge2),5px 2px 1px rgba(0,0,0,.25)}
+.sheet.left{border-radius:5px 1px 1px 5px;box-shadow:-1px 0 0 var(--edge1),-2px 1px 0 var(--edge2),-3px 1px 0 var(--edge1),-4px 2px 0 var(--edge2),-5px 2px 1px rgba(0,0,0,.25)}
+.sheet.right::before{background:linear-gradient(90deg,rgba(45,28,12,.4) 0,rgba(45,28,12,.2) 2.2%,rgba(45,28,12,.07) 6%,rgba(255,248,232,0) 9%,rgba(255,248,232,.16) 12%,rgba(255,248,232,0) 24%,rgba(0,0,0,0) 86%,rgba(45,28,12,.1) 100%)}
+.sheet.left::before{background:linear-gradient(270deg,rgba(45,28,12,.4) 0,rgba(45,28,12,.2) 2.2%,rgba(45,28,12,.07) 6%,rgba(255,248,232,0) 9%,rgba(255,248,232,.14) 12%,rgba(255,248,232,0) 24%,rgba(0,0,0,0) 86%,rgba(45,28,12,.12) 100%)}
+.sheet::after{background:radial-gradient(ellipse 120% 90% at 50% 0%,rgba(255,200,140,.08),transparent 60%),linear-gradient(180deg,rgba(255,255,255,.03),rgba(60,36,18,.1))}
+
+/* black – dot grid */
+.p0{--paper:#f6f4ef;--edge1:#d9d5cc;--edge2:#f3f1ec}
+.p0 .pat{inset:auto;left:var(--pl);top:var(--pt);width:var(--pw);height:var(--ph);background-image:radial-gradient(circle,rgba(95,92,90,.6) 0 .8px,transparent 1.15px);background-size:var(--g) var(--g);background-position:0 0}
+/* pink – squared */
+.p1{--paper:#f7dfdd;--edge1:#e3c2bf;--edge2:#f6dedc}
+.p1 .pat{inset:auto;left:var(--pl);top:var(--pt);width:var(--pw);height:var(--ph);
+  background-image:linear-gradient(rgba(110,84,88,.42) 1px,transparent 1px),linear-gradient(90deg,rgba(110,84,88,.42) 1px,transparent 1px);
+  background-size:var(--g) var(--g);background-position:0 0;box-shadow:inset -1px -1px 0 rgba(110,84,88,.42)}
+/* cow – ruled */
+.p2{--paper:#fbfbf9;--edge1:#dddcd7;--edge2:#f7f7f4}
+.p2 .pat{inset:8% 0 3% 0;background-image:repeating-linear-gradient(transparent 0 calc(var(--l) - 1px),rgba(96,138,206,.58) calc(var(--l) - 1px) var(--l))}
+/* sticker spiral – old blank paper */
+.p3{--rt:2.2%;--paper:#e9e4d4;--edge1:#cfc7b2;--edge2:#e6dfcd}
+.p3 .pat{background:url(assets/cs_paper_aged.jpg) center/cover}
+.p3 .sheet.left .pat{transform:scaleX(-1)}
+.p3 .sheet.right .pat::after,.p3 .sheet.left .pat::after{content:"";position:absolute;top:var(--hy);height:var(--hl);left:var(--hx);width:var(--hw);
+  background:linear-gradient(transparent calc(50% - var(--hh2)),#17120f calc(50% - var(--hh2)),#2a221d 50%,#17120f calc(50% + var(--hh2)),transparent calc(50% + var(--hh2)))
+    0 0/100% var(--hp) repeat-y;border-radius:2px;
+  -webkit-mask:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent);mask:linear-gradient(90deg,transparent,#000 18%,#000 82%,transparent)}
+.p3 .sheet.right,.p3 .sheet.left{border-radius:2px 7px 7px 2px}
+.p3 .sheet.left{border-radius:7px 2px 2px 7px}
+
+.cover{position:absolute;inset:0;transform-origin:0 50%;transform-style:preserve-3d}
+.cover .front,.cover .back{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.cover .front img{position:absolute;display:block;max-width:none}
+.cover .front .lab{font-size:calc(var(--lw) * .078)}
+.spikes{position:absolute;top:0;bottom:0;right:100%;width:5.6%;transform-origin:100% 50%;display:none;pointer-events:none}
+.spikes svg{width:100%;height:100%;display:block;overflow:visible;filter:drop-shadow(-1px 1px 1px rgba(0,0,0,.45))}
+.book.spiked .spikes{display:block}
+.strap{position:absolute;transform-origin:100% 50%;display:none;pointer-events:none;transform-style:preserve-3d}
+.strap img{position:absolute;inset:0;width:100%;height:100%;display:block;backface-visibility:hidden;-webkit-backface-visibility:hidden}
+.strap img.sb{transform:rotateY(180deg)}
+.book.strapped .strap{display:block}
+.cover .back{transform:rotateY(180deg);border-radius:10px 4px 4px 10px;background-size:cover;background-position:center}
+.cover .back .sheet{top:var(--it);bottom:var(--it);left:var(--ir);right:0}
+.cover .back::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(270deg,rgba(0,0,0,.35),transparent 18%);pointer-events:none}
+.cover .shade{position:absolute;inset:0;pointer-events:none;background:#000;opacity:0;border-radius:4px 10px 10px 4px}
+.gutter{position:absolute;top:var(--it);bottom:var(--it);left:-1px;width:2px;background:rgba(30,18,8,.4);filter:blur(.8px);opacity:0}
+.rings{position:absolute;opacity:0;display:none;transform:translateZ(12px);pointer-events:none}
+.spc{position:absolute;display:none;pointer-events:none;transform:translateZ(12px);left:-15.951%;top:-.828%;width:16.564%;height:101.655%}
+.spc img{width:100%;height:100%;display:block}
+.book.spiral .spc{display:block}
+.rings svg{display:block;width:100%;height:100%;overflow:visible}
+.book.spiral .rings{display:block}
+
+/* ---------- the frame comes closer; the room stays behind it ---------- */
+#frameView{position:fixed;inset:0;z-index:30;display:none}
+#frameView.on{display:block}
+#frameView .fdim{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 50%,rgba(6,4,3,.35),rgba(4,3,3,.62));opacity:0;transition:opacity .8s ease}
+#frameView.open .fdim{opacity:1}
+.fsrc{position:absolute;left:0;top:0;transform-origin:0 0;opacity:0;pointer-events:none;filter:drop-shadow(0 20px 30px rgba(0,0,0,.5))}
+.fz{position:absolute;left:0;top:0;transform-origin:0 0;opacity:0;border:var(--fb) solid #a9a39d;border-image:url(assets/cs_frame_silver2.webp) 94 stretch;
+  background:linear-gradient(165deg,#f4e8dc,#ecdccf 55%,#e3d0c1);box-shadow:0 30px 70px rgba(0,0,0,.55),0 8px 18px rgba(0,0,0,.35)}
+.fz::before{content:"";position:absolute;inset:0;box-shadow:inset 0 0 0 1px rgba(70,50,36,.35),inset 3px 3px 7px rgba(70,50,36,.28),inset -2px -2px 4px rgba(255,255,255,.3);pointer-events:none}
+.fz .mat{position:absolute;inset:9% 10.5%;box-shadow:0 0 0 1px rgba(150,118,96,.32),inset 1px 1px 0 rgba(255,255,255,.65),inset -1px -1px 0 rgba(120,92,72,.22),-1px -1px 0 rgba(120,92,72,.16),1px 1px 0 rgba(255,255,255,.6)}
+.fz .content{position:absolute;inset:0}
+#frameView .x{position:fixed;top:calc(var(--hh) + 14px);right:24px;z-index:2;width:44px;height:44px;border-radius:50%;border:1px solid rgba(239,227,207,.3);background:rgba(18,12,10,.55);
+  color:var(--cream);font-size:0;padding:0;cursor:pointer;opacity:0;transition:opacity .4s}
+#frameView.ready .x{opacity:1}
+/* ---------- the cv, behind the glass of the frame ---------- */
+.fz .mat{inset:2.36% 3.5%}
+.fz .content{container-type:inline-size}
+.fz .cv{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;background:#fdfaf5;color:#1c1a19;
+  font:400 clamp(8.4px,2.12cqw,13px)/1.4 'Inter','Jost',system-ui,sans-serif;padding:5.2% 6.4% 6%;box-sizing:border-box;
+  scrollbar-width:thin;scrollbar-color:rgba(110,84,88,.45) transparent;-webkit-overflow-scrolling:touch;outline:none;
+  -webkit-mask-image:linear-gradient(#000 0,#000 calc(100% - 1.6em),transparent);mask-image:linear-gradient(#000 0,#000 calc(100% - 1.6em),transparent)}
+.cv .nm{font-size:2.35em;line-height:1.1;font-weight:700;letter-spacing:-.02em;margin:0 0 .25em}
+.cv .role{font-size:1.25em;margin:0 0 .25em}
+.cv .tags{color:#7a7570;margin:0 0 .9em}
+.cv .contacts{display:flex;flex-wrap:wrap;gap:.2em 1.6em;margin:0;padding-bottom:.9em;border-bottom:1px solid #1c1a19}
+.cv .contacts i{font-style:normal;color:#7a7570}
+.cv a{color:inherit;text-decoration:none;border-bottom:1px solid rgba(28,26,25,.25)}
+.cv a:hover{border-bottom-color:currentColor}
+.cv .h2{font-size:.86em;font-weight:600;letter-spacing:.14em;text-transform:uppercase;margin:1.55em 0 .6em}
+.cv p{margin:0 0 .6em}
+.cv .job{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:0 1em;margin-top:1em}
+.cv .job:first-of-type{margin-top:0}
+.cv .h3{font-size:1em;font-weight:600;margin:0}
+.cv .h3 b{font-weight:600;margin-left:.35em}
+.cv .when{color:#7a7570;font-size:.9em}
+.cv .sub{color:#7a7570;font-size:.92em;margin:.1em 0 .4em}
+.cv ul{margin:.3em 0 0;padding-left:1.1em}
+.cv li{margin:0 0 .25em}
+.cv dl{display:grid;grid-template-columns:3.4em 1fr;gap:.25em 0;margin:.4em 0 0}
+.cv dt{font-weight:600}
+.cv dd{margin:0}
+.cv .sk{margin:0 0 .4em}
+.cv .sk>b:first-child{margin-right:.35em}
+.cv .sk i{font-style:normal;color:#7a7570}
+/* the wedding invitation across the art spread */
+.tt .invh{background:#f4e7d3;border-radius:2px;box-shadow:0 2px 5px rgba(45,28,12,.22),0 10px 22px rgba(45,28,12,.16)}
+.invb{position:absolute;top:0;left:-100%;width:200%;height:100%;transform:translateZ(13px);pointer-events:none;display:none}
+.invb.on{display:block}
+.invb .snd{position:absolute;pointer-events:auto}
+/* a nudge after a while with nothing touched */
+.nbv{transform-origin:50% 100%}
+.nudge{position:fixed;left:0;top:0;z-index:19;pointer-events:none;padding:8px 15px 8px 17px;border-radius:999px;white-space:nowrap;
+  background:rgba(18,12,10,.78);border:1px solid rgba(239,227,207,.32);color:var(--cream);font:400 11px/1 'Jost',sans-serif;letter-spacing:.24em;text-transform:lowercase;
+  box-shadow:0 6px 18px rgba(0,0,0,.35);opacity:0;transform:translate(-50%,calc(-100% + 6px)) scale(.92);transition:opacity .35s ease,transform .45s cubic-bezier(.2,.8,.25,1.2)}
+.nudge::after{content:"";position:absolute;left:50%;bottom:-5px;width:8px;height:8px;background:rgba(18,12,10,.92);border-right:1px solid rgba(239,227,207,.32);
+  border-bottom:1px solid rgba(239,227,207,.32);transform:translateX(-50%) rotate(45deg)}
+.nudge.on{opacity:1;transform:translate(-50%,-100%) scale(1)}
+@media (prefers-reduced-motion:reduce){ .nudge{transition:opacity .3s} }
+.cv a.mail{position:relative}
+.cv a.mail::after{content:"copied";position:absolute;left:50%;bottom:calc(100% + 6px);transform:translate(-50%,3px);padding:4px 8px;border-radius:999px;
+  background:#1c1a19;color:#fdfaf5;font-size:.78em;letter-spacing:.06em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .25s,transform .25s}
+.cv a.mail[data-copied]::after{opacity:1;transform:translate(-50%,0)}
+/* phone menu, as on the reference sites: a quiet button, the sections open over everything */
+.mbtn{display:none;width:44px;height:44px;border:0;background:none;padding:0;cursor:pointer;position:relative}
+.mbtn i{position:absolute;left:11px;right:11px;height:1px;background:var(--cream)}
+.mbtn i:first-child{top:18px}.mbtn i:last-child{top:25px}
+#mmenu{position:fixed;inset:0;z-index:21;background:rgba(4,3,3,.97);display:flex;flex-direction:column;justify-content:center;padding:var(--hh) 34px 8vh;
+  opacity:0;pointer-events:none;transition:opacity .45s ease}
+#mmenu.on{opacity:1;pointer-events:auto}
+#mmenu a{font-weight:300;font-size:clamp(26px,8vw,36px);letter-spacing:.16em;text-transform:uppercase;color:var(--cream);text-decoration:none;padding:9px 0;
+  transform:translateY(10px);opacity:0;transition:transform .55s cubic-bezier(.2,.7,.2,1),opacity .55s}
+#mmenu.on a{transform:none;opacity:1}
+#mmenu.on a:nth-child(2){transition-delay:.04s}#mmenu.on a:nth-child(3){transition-delay:.08s}#mmenu.on a:nth-child(4){transition-delay:.12s}#mmenu.on a:nth-child(5){transition-delay:.16s}
+.mbtn i{transition:transform .45s cubic-bezier(.2,.7,.2,1),top .45s cubic-bezier(.2,.7,.2,1)}
+body.menu .mbtn i:first-child{top:21.5px;transform:rotate(45deg)}
+body.menu .mbtn i:last-child{top:21.5px;transform:rotate(-45deg)}
+body.menu header::after{opacity:0}
+@media (max-width:1180px) and (min-width:861px){
+  nav{gap:clamp(12px,1.8vw,26px)}
+  nav a{letter-spacing:.2em;padding-left:.2em;font-size:11.5px}
+  header{column-gap:clamp(18px,2.6vw,40px)}
+}
+@media (max-width:860px){
+  #credit{font-size:9.5px;letter-spacing:.18em;bottom:calc(12px + env(safe-area-inset-bottom))}
+  :root{--hh:64px}
+  header{grid-template-columns:44px 1fr 44px;column-gap:8px;padding:0 10px}
+  header nav{display:none}
+  .mbtn{display:block;grid-column:1;grid-row:1}
+  .logo{grid-column:2;grid-row:1;text-align:center;font-size:30px}
+  #viewport{scroll-snap-type:x mandatory}
+  #shelfPager{display:flex;transition:opacity .4s}
+  .snap{position:absolute;top:0;width:1px;height:1px;scroll-snap-align:center;pointer-events:none}
+}
+@media (hover:none){ .nb:hover .nbv{transform:none;filter:none} #frame:hover{filter:none;transform:none} }
+/* ---------- the curtain: loader and opening ---------- */
+#curtain{position:fixed;inset:0;z-index:100;background:radial-gradient(ellipse at 50% 40%,#2c0a1d,#12030b 75%);cursor:default}
+#curtain.drawn{background:transparent}
+#curtain canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#curtain .cl{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:22px;
+  transition:opacity .6s ease,transform .9s cubic-bezier(.2,.7,.2,1);pointer-events:none}
+#curtain .clogo{font-family:'Spirax',cursive;white-space:nowrap;font-size:clamp(34px,4.6vw,62px);line-height:1;letter-spacing:.04em;color:var(--cream);
+  text-shadow:0 0 24px rgba(255,200,230,.22),0 2px 14px rgba(0,0,0,.7);opacity:0;transition:opacity .9s ease}
+#curtain.fonts .clogo{opacity:1}
+#curtain .cbar{width:clamp(150px,16vw,220px);height:1px;background:rgba(239,227,207,.2);overflow:hidden}
+#curtain .cbar i{display:block;height:100%;width:100%;background:var(--cream);transform:scaleX(0);transform-origin:0 50%;box-shadow:0 0 8px rgba(255,230,240,.6)}
+#curtain.opening .cl{opacity:0;transform:translate(-50%,-56%)}
+#curtain.gone{display:none}
+/* ---------- filled notebooks: photos, video, stickers and text glued onto the pages ---------- */
+.sheet .tt{position:absolute;inset:0;z-index:3;pointer-events:none;-webkit-user-select:none;user-select:none}
+.tt .tp{position:absolute;overflow:hidden;transform-origin:50% 50%}
+.tt .tp img,.tt .tp video{position:absolute;display:block;height:auto;max-width:none}
+.tt svg.td{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.tt .tx{font-family:'Delius','Jost',sans-serif;font-size:40.6px;fill:#141212;letter-spacing:0}
+/* sound button under the video: a crossed-out speaker until it's switched on */
+.tt .snd{position:absolute;z-index:2;aspect-ratio:1;min-width:34px;transform:translate(-50%,-50%);padding:0;border-radius:50%;cursor:pointer;pointer-events:auto;
+  background:rgba(255,250,246,.72);border:1px solid rgba(110,84,88,.45);box-shadow:0 1px 3px rgba(60,30,30,.18);transition:background .25s,transform .2s}
+.tt .snd:hover{background:#fffaf6;transform:translate(-50%,-50%) scale(1.06)}
+.tt .snd svg{display:block;width:62%;height:62%;margin:auto;fill:none;stroke:#6e5458;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tt .snd .spk{fill:#6e5458}
+.tt .snd .on{display:none} .tt .snd.is-on .on{display:inline} .tt .snd.is-on .off{display:none}
+@media (prefers-reduced-motion:reduce){ .nbv,#frame,nav a{transition:none} }
+</style>
+</head>
+<body>
+<div id="curtain" aria-label="Loading">
+  <canvas></canvas>
+  <div class="cl"><div class="clogo">kozmic bluez</div><div class="cbar"><i></i></div></div>
+</div>
+<header>
+  <button class="mbtn" aria-label="Menu" aria-expanded="false"><i></i><i></i></button>
+  <nav class="l" aria-label="Sections">
+    <a href="#tattoo" data-go="2">tattoo</a>
+    <a href="#merch" data-go="1">merch</a>
+  </nav>
+  <h1 class="logo"><a href="./">kozmic bluez</a></h1>
+  <nav class="r" aria-label="More sections">
+    <a href="#concepts" data-go="0">concepts</a>
+    <a href="#art" data-go="3">art</a>
+    <a href="#cv" data-go="frame">cv</a>
+  </nav>
+</header>
+
+<div id="mmenu" aria-hidden="true">
+  <a href="#tattoo" data-go="2">tattoo</a><a href="#merch" data-go="1">merch</a><a href="#concepts" data-go="0">concepts</a><a href="#art" data-go="3">art</a><a href="#cv" data-go="frame">cv</a>
+</div>
+<main id="viewport"><div id="sizer"><div id="stage">
+  <img class="bg" src="assets/cs_scene.jpg" alt="A shelf with four notebooks and a picture frame, a ginger cat asleep on top, rain on the windows">
+  <div class="win" data-k="L"><canvas class="streaks"></canvas><canvas class="glass"></canvas></div>
+  <div class="win" data-k="R"><canvas class="streaks"></canvas><canvas class="glass"></canvas></div>
+  <div class="win sill" data-k="S"><canvas class="refl"></canvas></div>
+  <canvas id="tail"></canvas>
+  <div class="edge l"></div><div class="edge r"></div>
+</div></div></main>
+<div id="fadeB"></div>
+<div id="shelfPager" aria-label="Shelf"></div>
+<footer id="credit">designed by kozmic bluez <span>✦</span> built with AI</footer>
+
+<div id="reader" aria-hidden="true">
+  <div id="dim"></div>
+  <button id="close" class="xbtn" aria-label="Put the notebook back"></button>
+  <div id="nextnb"><button type="button"></button><span class="nnl"></span></div>
+  <div id="pager"><button class="prev" aria-label="Previous page">‹</button><span class="lbl"></span><span class="num"></span><button class="next" aria-label="Next page">›</button></div>
+  <div class="book">
+    <div class="shadow"></div>
+    <div class="backcover"></div>
+    <div class="block"><div class="edgeR"></div><div class="edgeB"></div><div class="sheet right base"><div class="pat"></div></div><div class="leaves"></div></div>
+    <div class="cover">
+      <div class="front"><img alt=""><div class="lab"></div></div>
+      <div class="back"><div class="sheet left"><div class="pat"></div></div></div>
+      <div class="shade"></div>
+    </div>
+    <div class="gutter"></div>
+    <div class="rings"></div>
+    <div class="spc"><img src="assets/cs_spiral.webp" alt=""></div>
+    <div class="spikes"><svg viewBox="0 0 30 1000" preserveAspectRatio="none" aria-hidden="true">
+      <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1e1a17"/><stop offset=".3" stop-color="#7d6f62"/><stop offset=".46" stop-color="#b7a593"/><stop offset=".62" stop-color="#5c5047"/><stop offset="1" stop-color="#16120f"/></linearGradient></defs>
+      <g id="spkg"></g></svg></div>
+    <div class="strap"><img class="sf" alt=""><img class="sb" alt=""></div>
+  </div>
+</div>
+
+<div id="frameView" aria-hidden="true">
+  <div class="fdim"></div>
+  <img class="fsrc" src="assets/cs_frame_cv.webp" alt="">
+  <div class="fz" role="dialog" aria-label="cv"><div class="mat"><div class="content"><div class="cv" tabindex="0" aria-label="Dana Tolegenova, CV">
+<div class="hd"><div class="nm" role="heading" aria-level="1">Dana Tolegenova</div><p class="role">Artist &amp; Designer</p><p class="tags">Tattoo · Illustration · Fashion · Product Design</p>
+<p class="contacts"><a class="mail" href="mailto:mykozmicbluez@gmail.com" title="copy or write an e-mail">mykozmicbluez@gmail.com</a><span><i>Telegram</i> <a href="https://t.me/kozmic_bluez" target="_blank" rel="noopener">@kozmic_bluez</a></span><span>Almaty, Kazakhstan</span></p></div>
+<div class="h2" role="heading" aria-level="2">About</div>
+<p>Artist and designer from Almaty with a background in tattoo art and 5 years of product design at Kaspi.kz. I create illustrations, merch and clothing concepts, turning personal stories about childhood, memory and old wounds into things people can wear and carry. Working toward my own clothing brand.</p>
+<div class="h2" role="heading" aria-level="2">Experience</div>
+<div class="job"><div class="h3" role="heading" aria-level="3">Product Designer <b>Kaspi.kz</b></div><span class="when">Jan 2022 — Oct 2026 · 4 years 10 months</span></div>
+<p class="sub">Intern → Junior → Middle → Senior Product Designer / Team Lead</p>
+<ul><li>Grew from intern to team lead in 4 years; led a team of three designers, contributed to hiring and mentored interns</li>
+<li>Designed and launched Kaspi Travel Business and a domestic stay-booking service as the sole designer, for a super app with 15M+ monthly users</li>
+<li>Redesigned the Travel homepage, increasing hotel search conversion by 39%; reduced customer incidents by 81% with a self-service post-booking experience</li></ul>
+<div class="job"><div class="h3" role="heading" aria-level="3">Independent Artist &amp; Designer <b>Self-employed</b></div><span class="when">2020 — present</span></div>
+<dl><dt>2020</dt><dd>Illustrated and printed a series of charity postcards and donated all proceeds to NeMolchi.kz, a foundation supporting survivors of violence</dd>
+<dt>2020</dt><dd>Designed a sticker pack for Depressnyachok, a podcast media project</dd>
+<dt>2021</dt><dd>Launched “bear me”, my first merch collection, designed, produced and sold independently via Instagram. Sewed the t-shirts myself, with print and embroidery made to my designs; did the photoshoots, stop-motion animation and social content</dd>
+<dt>2023</dt><dd>Released the second drop of “bear me”</dd>
+<dt>2025</dt><dd>Started “boltirik”, a clothing collection in progress: concept, sketches, graphics and a first t-shirt sample</dd>
+<dt>2026</dt><dd>Designed and built my portfolio website with AI tools: concept, art direction and texts</dd></dl>
+<div class="job"><div class="h3" role="heading" aria-level="3">Tattoo Artist <b>Tattoo studios, Almaty</b></div><span class="when">2019 — 2023</span></div>
+<ul><li>Created one-of-a-kind designs, from ironic naive minimalism to bright, colorful pieces, based on my own sketches and clients’ stories</li>
+<li>2021: ran my own studio for six months. Set up the space, managed two tattoo artists and day-to-day operations while tattooing</li></ul>
+<div class="h2" role="heading" aria-level="2">Skills</div>
+<p class="sk"><b>Creative</b> Illustration · Graphic design · Tattoo design · Print &amp; embroidery design · Sewing · Photoshoots · Stop-motion · Art direction</p>
+<p class="sk"><b>Product</b> End-to-end product design · User research · Prototyping · Team leadership</p>
+<p class="sk"><b>Tools</b> Procreate · Illustrator · Photoshop · Figma · Claude · ChatGPT · Gemini</p>
+<p class="sk"><b>Languages</b> <b>English</b> <i>B2 — Upper-Intermediate</i> &nbsp; <b>Russian</b> <i>Native</i> &nbsp; <b>Kazakh</b> <i>Native</i></p>
+<p class="sk"><b>Education</b> Self-taught</p>
+</div></div></div></div>
+  <button class="x xbtn" aria-label="Put the frame back"></button>
+</div>
+
+<script>
+/* ===================== curtain: a real loader, then the velvet opens ===================== */
+const curtainDone=(function(){
+  const box=document.getElementById('curtain'), cv=box.querySelector('canvas'), ctx=cv.getContext('2d'), bar=box.querySelector('.cbar i');
+  const img=new Image(); img.src='assets/cs_curtain.jpg';
+  document.fonts&&document.fonts.ready.then(()=>box.classList.add('fonts')); setTimeout(()=>box.classList.add('fonts'),1200);
+  // what the room needs before it can be shown
+  const urls=['assets/cs_scene.jpg','assets/cs_tail.png','assets/cs_frame_cv.webp','assets/cs_framehole.webp','assets/cs_glassL.png','assets/cs_glassR.png','assets/cs_glassS.png'];
+  for(let i=0;i<4;i++) urls.push(`assets/cs_nb${i}.webp`,`assets/cs_hole${i}.webp`,`assets/cs_refl${i}.webp`,`assets/cs_rf${i}.webp`);
+  let done=0; const total=urls.length+1;
+  const tick=()=>{done++};
+  urls.forEach(u=>{const im=new Image(); im.onload=im.onerror=tick; im.src=u;});
+  (document.fonts?document.fonts.ready:Promise.resolve()).then(tick,tick);
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W=0,H=0,DPR=1;
+  const size=()=>{ DPR=Math.min(2,devicePixelRatio||1); W=innerWidth; H=innerHeight; cv.width=W*DPR; cv.height=H*DPR; };
+  size(); addEventListener('resize',size);
+  const ease=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+  const clamp=x=>Math.max(0,Math.min(1,x));
+  // draw one curtain made of vertical strips; p = how far it has gathered, q = how far it has left the screen
+  function panel(side,x0,x1,P,Q,t){
+    const iw=img.naturalWidth, ih=img.naturalHeight, k=Math.max(W/iw,H/ih), ox=(W-iw*k)/2, oy=(H-ih*k)/2;
+    const N=Math.max(18,Math.round((x1-x0)/14)), M=14, sw=(x1-x0)/N, G=Math.max(46,(x1-x0)*.17), gw=G/N, bandH=H/M;
+    const lead=side>0?N-1:0;            // the strip at the opening edge moves first
+    for(let i=0;i<N;i++){
+      const fromLead=Math.abs(i-lead)/(N-1);     // 0 at the opening edge, 1 at the far side
+      const rest=x0+i*sw, gather=side>0?x0+i*gw:x1-(N-i)*gw;
+      const sx=(rest-ox)/k, sW=sw/k;
+      for(let r=0;r<M;r++){
+        const y0=r*bandH, y1=y0+bandH;
+        const at=y=>{ const lag=(y/H)*.13+fromLead*.3; return ease(clamp(P*1.43-lag)); };
+        const pt=at(y0), pb=at(y1);
+        const sway=(1-Math.abs(.5-P)*2)*Math.sin(t*2.1+i*.35+y0*.004)*6*(1-fromLead*.5);
+        const exit=(side>0?-1:1)*Q*(G+40);
+        const xt=rest+(gather-rest)*pt+sway*(y0/H)+exit, xb=rest+(gather-rest)*pb+sway*(y1/H)+exit;
+        const wt=sw+(gw-sw)*(pt+pb)/2;
+        const c=(xb-xt)/bandH;
+        ctx.setTransform(DPR,0,c*DPR,DPR,(xt-c*y0)*DPR,0);
+        const sy=(y0-oy)/k, sH=bandH/k;
+        ctx.drawImage(img,sx,sy,sW,sH,0,y0,wt+.8,bandH+.6);
+        // gathered cloth folds deeper
+        const fold=((pt+pb)/2)*(.18+.32*(.5+.5*Math.cos(i*2.1)));
+        if(fold>.01){ ctx.fillStyle=`rgba(8,0,5,${fold.toFixed(3)})`; ctx.fillRect(0,y0,wt+.8,bandH+.6); }
+      }
+    }
+    ctx.setTransform(1,0,0,1,0,0);
+  }
+  function draw(P,Q,t){
+    ctx.setTransform(1,0,0,1,0,0); ctx.clearRect(0,0,cv.width,cv.height);
+    if(!img.complete||!img.naturalWidth) return;
+    box.classList.add('drawn');
+    const phone=innerWidth<=860;
+    if(phone) panel(1,0,W,P,Q,t);                       // one curtain, pulled to the left
+    else{ panel(1,0,W/2,P,Q,t); panel(-1,W/2,W,P,Q,t); }  // two, parting in the middle
+    // a soft shadow along the top, where the curtain hangs from
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    const g=ctx.createLinearGradient(0,0,0,H*.12); g.addColorStop(0,'rgba(0,0,0,.55)'); g.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=g; ctx.globalAlpha=(1-P)*.9+.1*(1-Q); ctx.fillRect(0,0,W,H*.12); ctx.globalAlpha=1; ctx.setTransform(1,0,0,1,0,0);
+  }
+  return new Promise(resolve=>{
+    const t0=performance.now(); let shown=0, phase='load', ps=0, P=0, Q=0;
+    const MIN=1500, OPEN=2600, EXIT=750;
+    function frame(now){
+      const t=now/1000;
+      if(phase==='load'){
+        shown+=(done/total-shown)*.08; bar.style.transform=`scaleX(${Math.min(1,shown+.002)})`;
+        if(done>=total&&shown>.985&&now-t0>MIN&&img.complete){ bar.style.transform='scaleX(1)'; phase='hold'; ps=now; }
+      }else if(phase==='hold'){
+        if(now-ps>380){ box.classList.add('opening'); phase='open'; ps=now; }
+      }else if(phase==='open'){
+        P=reduce?1:clamp((now-ps)/OPEN);
+        if(P>=1){ phase='exit'; ps=now; }
+      }else if(phase==='exit'){
+        Q=reduce?1:ease(clamp((now-ps)/EXIT));
+        if(Q>=1){ box.classList.add('gone'); resolve(); return; }
+      }
+      draw(P,Q,t); requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    // a click lets an impatient visitor in as soon as everything has loaded
+    box.addEventListener('click',()=>{ if(phase==='load'&&done>=total){ shown=1; } });
+  });
+})();
+
+/* ===================== scene data (stage px, image is 1672×941) ===================== */
+const SW=1672, SH=941;
+const NB=[
+  {key:'concepts',     box:[196,388,444,727], hole:[193,380,449,732], refl:[191,724,451,800],
+   cover:{l:0,t:-.263,w:102.119,h:100.658}, ar:.6829, color:'#141214', inner:'#19171a', it:1.4, ir:1.8,
+   lab:[278,431,393,509], clab:[20.04,11.71,77.26,36.45], spikes:true, strap:{l:81.503,t:44.474,w:22.351,h:8.684}},
+  {key:'merch',        box:[485,389,715,724], hole:[480,384,720,729], refl:[478,724,722,800],
+   cover:{l:-.569,t:0,w:105.313,h:100.262}, ar:.6916, color:'#e597a0', inner:'#ec9fa7', it:1.6, ir:3.2,
+   lab:[544,444,645,508], clab:[21.82,14.3,76.85,38.98], strap:{l:70.588,t:45.538,w:32.827,h:11.155}},
+  {key:'tattoo',       box:[755,389,986,726], hole:[750,384,991,731], refl:[748,724,993,800],
+   cover:{l:-1.912,t:-1.48,w:103.442,h:102.826}, ar:.7039, color:'#f2efe9', inner:'fur', it:3.2, ir:4.2,
+   lab:[817,451,925,518], clab:[23.52,14.27,81.26,42.53]},
+  {key:'art',          box:[1018,394,1266,721],hole:[1012,389,1271,730],refl:[1010,724,1273,800],
+   cover:{l:0,t:-.552,w:101.431,h:101.103}, ar:.6745, color:'#121212', inner:'#151515', it:1.2, ir:1.6, spiral:true,
+   lab:[1083,445,1204,526], clab:[17.2,14.6,73.6,39.9]}
+];
+// where each thing stands. desktop: tattoo first, concepts third. phone: packed close together
+const RFBOT=[337,333,335,327];               // bottom row of each shelf picture, where its reflection starts
+const ORDER=[2,1,0,3,'frame'];
+const SLOT={2:320,1:600,0:870.5,3:1142};    // desktop centres
+let LEAVES=12;                         // leaves of the open notebook: spreads = LEAVES + 1
+const BOOK_LEAVES={tattoo:8, merch:3, art:8, concepts:2};   // spreads = leaves + 1: 9, 4, 9 and 3
+const TAIL={x:1052,y:96,w:104,h:196,board:127,pad:36};
+const FRAME=[1295,331,1523,760];
+const WIN={L:[0,0,236,512],R:[1500,0,1672,486],S:[0,492,236,520]};
+const FHOLE=[1293,329,1525,762];
+
+const stage=document.getElementById('stage'), navLinks=[...document.querySelectorAll('nav a, #mmenu a')];
+const mmenu=document.getElementById('mmenu'), mbtn=document.querySelector('.mbtn');
+const setMenu=on=>{ mmenu.classList.toggle('on',on); document.body.classList.toggle('menu',on); mmenu.setAttribute('aria-hidden',String(!on)); mbtn.setAttribute('aria-expanded',String(on)); mbtn.setAttribute('aria-label',on?'Close the menu':'Menu'); };
+mbtn.addEventListener('click',()=>setMenu(!mmenu.classList.contains('on')));
+const linkFor=k=>navLinks.find(a=>a.dataset.go===String(k));
+const place=(el,[x0,y0,x1,y1])=>Object.assign(el.style,{left:x0+'px',top:y0+'px',width:(x1-x0)+'px',height:(y1-y0)+'px'});
+const tailEl=document.getElementById('tail');
+
+NB.forEach((nb,i)=>{
+  const hole=new Image(); hole.src=`assets/cs_hole${i}.webp`; hole.className='hole'; hole.alt=''; place(hole,nb.hole);
+  const refl=new Image(); refl.src=`assets/cs_refl${i}.webp`; refl.className='refl on'; refl.alt=''; place(refl,nb.refl);   // hides the painted reflection
+  const rf=new Image(); rf.src=`assets/cs_rf${i}.webp`; rf.className='rf'; rf.alt='';
+  const el=document.createElement('div'); el.className='nb'; place(el,nb.box);
+  el.innerHTML=`<div class="nbv"><img src="assets/cs_nb${i}.webp" alt=""><div class="lab">${nb.key}</div></div>`;
+  const [bx,by]=nb.box, [lx0,ly0,lx1,ly1]=nb.lab;
+  Object.assign(el.querySelector('.lab').style,{left:(lx0-bx)+'px',top:(ly0-by)+'px',width:(lx1-lx0)+'px',height:(ly1-ly0)+'px'});
+  el.tabIndex=0; el.setAttribute('role','button'); el.setAttribute('aria-label',`${nb.key} notebook`);
+  el.addEventListener('click',()=>go(i));
+  el.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go(i)}});
+  el.addEventListener('pointerenter',e=>{ if(e.pointerType==='mouse') linkFor(i).classList.add('hot'); });
+  el.addEventListener('pointerleave',()=>linkFor(i).classList.remove('hot'));
+  stage.insertBefore(hole,tailEl); stage.insertBefore(refl,tailEl); stage.insertBefore(rf,tailEl); stage.appendChild(el);
+  Object.assign(nb,{el,hole,refl,rf,w:nb.box[2]-nb.box[0],h:nb.box[3]-nb.box[1]});
+  new Image().src=`assets/cs_cover${i}.webp`;
+});
+const fhole=new Image(); fhole.src='assets/cs_framehole.webp'; fhole.className='hole'; fhole.alt=''; place(fhole,FHOLE); stage.insertBefore(fhole,tailEl);
+const frameEl=new Image(); frameEl.src='assets/cs_frame_cv.webp'; frameEl.id='frame'; frameEl.alt='picture frame: cv';
+frameEl.tabIndex=0; frameEl.setAttribute('role','button'); place(frameEl,FRAME); stage.appendChild(frameEl);
+frameEl.addEventListener('click',()=>go('frame'));
+frameEl.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();go('frame')}});
+frameEl.addEventListener('pointerenter',e=>{ if(e.pointerType==='mouse') linkFor('frame').classList.add('hot'); });
+frameEl.addEventListener('pointerleave',()=>linkFor('frame').classList.remove('hot'));
+navLinks.forEach(a=>{
+  const k=a.dataset.go, target=()=>k==='frame'?frameEl:NB[+k].el;
+  a.addEventListener('pointerenter',e=>{ if(e.pointerType==='mouse') target().classList.add('hot'); });
+  a.addEventListener('pointerleave',()=>target().classList.remove('hot'));
+  a.addEventListener('click',e=>{e.preventDefault(); target().classList.remove('hot'); const was=mmenu.classList.contains('on'); setMenu(false);
+    const key=k==='frame'?'frame':+k;
+    if(was){ revealOnShelf(key); setTimeout(()=>go(key),420); } else go(key); });
+});
+
+/* ===================== layout ===================== */
+const vp=document.getElementById('viewport'), sizer=document.getElementById('sizer');
+const CROP=835;            // up to ~100px of floor may be cropped at the bottom
+const FOCUS=735;           // centre of the notebooks, kept in view on narrow screens
+let STOPS=[];
+let snaps=null, firstLayout=true;
+function arrange(phone){
+  // centre x of every item, in the order on the shelf
+  const width=k=>k==='frame'?FRAME[2]-FRAME[0]:NB[k].w;
+  let centres={};
+  if(phone){
+    const gap=10, total=ORDER.reduce((a,k)=>a+width(k),0)+gap*(ORDER.length-1);
+    let x=842-total/2;
+    for(const k of ORDER){ centres[k]=x+width(k)/2; x+=width(k)+gap; }
+  }else{ centres={...SLOT,frame:(FRAME[0]+FRAME[2])/2}; }
+  NB.forEach((nb,i)=>{
+    const x=Math.round(centres[i]-nb.w/2); nb.x=x;
+    nb.el.style.left=x+'px';
+    Object.assign(nb.rf.style,{left:x+'px',top:(nb.box[1]+RFBOT[i]-1)+'px',width:nb.w+'px'});
+  });
+  frameEl.style.left=Math.round(centres.frame-(FRAME[2]-FRAME[0])/2)+'px';
+  STOPS=ORDER.map(k=>centres[k]);
+}
+function layout(){
+  const W=vp.clientWidth, H=vp.clientHeight, phone=innerWidth<=860;
+  arrange(phone);
+  let s=Math.min(W/SW,H/CROP);
+  if(W/H<1.15) s=phone?Math.min(H/1000,W/680):Math.min(H/CROP,W/700);
+  stage.style.transform=`scale(${s})`;
+  sizer.style.width=Math.max(W,SW*s)+'px';
+  stage.style.left=Math.max(0,(W-SW*s)/2)+'px';
+  const top=phone&&W/H<1.15?Math.max(0,(H-SH*s)/2):0;
+  stage.style.top=top+'px';
+  const hh=vp.getBoundingClientRect().top, bottom=Math.min(H,top+SH*s);
+  const fb=document.getElementById('fadeB'); fb.style.top=(hh+bottom-fb.offsetHeight)+'px';
+  stage.querySelectorAll('.edge').forEach(e=>e.style.display=SW*s<W-2?'block':'none');
+  const left=Math.max(0,(W-SW*s)/2);
+  if(phone&&SW*s>W){
+    if(!snaps){ snaps=STOPS.map(()=>{const d=document.createElement('div'); d.className='snap'; sizer.appendChild(d); return d;}); }
+    snaps.forEach((d,k)=>d.style.left=(left+STOPS[k]*s)+'px');
+    if(firstLayout) vp.scrollLeft=Math.max(0,STOPS[0]*s-W/2);
+  }else if(SW*s>W) vp.scrollLeft=Math.min(SW*s-W,Math.max(0,FOCUS*s-W/2));
+  firstLayout=false; scale=s; stageLeft=left; buildDots(); syncDots();
+}
+// ---- phone: a quiet pager under the shelf, so it's clear the shelf scrolls sideways ----
+let scale=1, stageLeft=0, dots=null;
+const shelfPager=document.getElementById('shelfPager');
+function buildDots(){
+  if(dots) return;
+  const names=ORDER.map(k=>k==='frame'?'cv':NB[k].key);
+  shelfPager.innerHTML='<div class="sp-name"></div><div class="sp-lines">'+names.map((n,k)=>`<button aria-label="${n}" data-k="${k}"><i></i></button>`).join('')+'</div>';
+  dots=[...shelfPager.querySelectorAll('button')];
+  dots.forEach(b=>b.addEventListener('click',()=>{ const k=+b.dataset.k; vp.scrollTo({left:stageLeft+STOPS[k]*scale-vp.clientWidth/2,behavior:'smooth'}); }));
+}
+function syncDots(){
+  if(!dots||!STOPS.length) return;
+  const c=(vp.scrollLeft+vp.clientWidth/2-stageLeft)/scale;
+  let best=0; STOPS.forEach((x,k)=>{ if(Math.abs(x-c)<Math.abs(STOPS[best]-c)) best=k; });
+  dots.forEach((b,k)=>b.classList.toggle('on',k===best));
+  shelfPager.querySelector('.sp-name').textContent=ORDER[best]==='frame'?'cv':NB[ORDER[best]].key;
+}
+vp.addEventListener('scroll',syncDots,{passive:true});
+addEventListener('resize',layout); layout();
+addEventListener('load',()=>setTimeout(()=>['tt/s1-body','tt/s1-pug','tt/s1-close','mc/m1-ruins'].forEach(n=>{new Image().src=`assets/${n}.jpg`}),1500));
+
+/* ===================== routing ===================== */
+let busy=false, openKind=null, queued=null;   // null | 'book' | 'frame'
+// phone: bring the chosen notebook onto the screen before it's taken off the shelf
+function revealOnShelf(k){
+  if(!STOPS.length||vp.scrollWidth<=vp.clientWidth+2) return;
+  const n=ORDER.indexOf(k); if(n<0) return;
+  const snap=vp.style.scrollSnapType; vp.style.scrollSnapType='none';
+  vp.scrollLeft=stageLeft+STOPS[n]*scale-vp.clientWidth/2;
+  requestAnimationFrame(()=>vp.style.scrollSnapType=snap);
+}
+async function go(k){
+  if(busy){ queued=k; return; }     // a tap during an animation is kept, not lost
+  if(openKind==='book'){ if(k===cur) return; await closeBook(); }
+  else if(openKind==='frame'){ if(k==='frame') return; await closeFrame(); }
+  if(k==='frame') await openFrame(); else await openBook(k);
+  if(queued!==null){ const q=queued; queued=null; if(q!==(openKind==='frame'?'frame':cur)) go(q); }
+}
+const setHash=h=>history.replaceState(null,'',h?'#'+h:location.pathname+location.search);
+function markNav(k){ navLinks.forEach(a=>a.classList.toggle('cur',k!=null&&a.dataset.go===String(k))); }
+
+/* ===================== notebooks ===================== */
+const reader=document.getElementById('reader'), book=reader.querySelector('.book');
+const coverEl=book.querySelector('.cover'), frontImg=book.querySelector('.front img'), shade=book.querySelector('.cover .shade');
+const backcover=book.querySelector('.backcover'), coverBack=book.querySelector('.cover .back');
+const leavesEl=book.querySelector('.leaves'), gutter=book.querySelector('.gutter'), rings=book.querySelector('.rings');
+const spikesEl=book.querySelector('.spikes'), strapEl=book.querySelector('.strap'), strapImg=strapEl.querySelector('.sf'), strapBack=strapEl.querySelector('.sb'), coverLab=book.querySelector('.front .lab');
+// disc-binding spikes, drawn once: 12 metal discs seen edge-on
+document.getElementById('spkg').innerHTML=Array.from({length:12},(_,k)=>{const y=70+k*(866/11);
+  return `<polygon fill="url(#spk)" points="30,${y-11} 5,${y-1.8} 0,${y} 5,${y+1.8} 30,${y+11}"/>`}).join('');
+const ZS=()=>ZC()+1.6;                       // the strap lies on top of the cover
+const SPZ='calc(var(--d) * -.45)';           // spikes sit in the middle of the thickness
+const spT=a=>`translateZ(${SPZ}) rotateY(${a}deg)`, stT=(a,dz=0)=>`translateZ(${ZS()+dz}px) rotateY(${a}deg)`;
+const stU=a=>`translateZ(${(-geo.d*.86).toFixed(2)}px) rotateY(${a}deg)`;   // folded out, under the page block
+const pager=document.getElementById('pager'), pPrev=pager.querySelector('.prev'), pNext=pager.querySelector('.next'), nextNb=document.getElementById('nextnb');
+const nextAfter=i=>{ const k=ORDER.indexOf(i); return k>=0&&k<ORDER.length-1?ORDER[k+1]:null; };
+nextNb.addEventListener('click',e=>{ e.stopPropagation(); const nx=nextAfter(cur); if(nx!==null) go(nx); });
+let state='closed', cur=-1, geo=null, leaves=[], spread=0, flipping=0;
+const ease='cubic-bezier(.45,.05,.25,1)', wait=a=>a.finished;
+let TILT=9, MOB=false, page=0, curX=0;
+const isMob=()=>innerWidth<760||innerWidth/innerHeight<.8;
+const ZU=i=>1+(LEAVES-i)*.5, ZF=i=>.6+i*.5, ZC=()=>ZU(-1)+.8, ZTOP=()=>ZU(-1)+26;
+
+// coils as measured on the photo: 19 twin-wire loops, first at 5.72% of the height, one every 4.856%
+const COILS=19, C0=.0572, CP=.04856;
+function drawCoils(g,nb,bw,bh){
+  const W=g.W, H=g.H, itpx=H*nb.it/100;
+  const xh=bw*.052;                        // hole centre, measured from the gutter
+  const rw=xh*2+bw*.06;
+  Object.assign(rings.style,{left:(-rw/2)+'px',width:rw+'px',top:'0px',height:H+'px'});
+  // the punched holes on every sheet sit under the same loops
+  const hp=H*CP, hy=H*C0-itpx-hp/2;
+  book.style.setProperty('--hp',hp.toFixed(2)+'px'); book.style.setProperty('--hy',hy.toFixed(2)+'px'); book.style.setProperty('--hl',(hp*COILS).toFixed(2)+'px');
+  book.style.setProperty('--hx',(xh-bw*.016).toFixed(2)+'px'); book.style.setProperty('--hw',(bw*.032).toFixed(2)+'px');
+  book.style.setProperty('--hh2',(H*.0105).toFixed(2)+'px');
+  const sw=Math.max(1.6,H*.0042), gap=H*.0117, c=rw/2;
+  const wire=(y,bow)=>{
+    const d=`M${(c-xh).toFixed(1)} ${(y+1).toFixed(1)} Q${c.toFixed(1)} ${(y-bow).toFixed(1)} ${(c+xh).toFixed(1)} ${(y+1).toFixed(1)}`;
+    return `<path d="${d}" stroke="rgba(0,0,0,.45)" stroke-width="${(sw*1.5).toFixed(2)}" transform="translate(.6 ${(sw*.9).toFixed(2)})"/>`+
+           `<path d="${d}" stroke="#3a3a40" stroke-width="${(sw*1.15).toFixed(2)}"/>`+
+           `<path d="${d}" stroke="url(#wg)" stroke-width="${sw.toFixed(2)}"/>`+
+           `<path d="${d}" stroke="rgba(255,255,255,.85)" stroke-width="${(sw*.28).toFixed(2)}" transform="translate(0 ${(-sw*.22).toFixed(2)})"/>`;
+  };
+  let s='';
+  for(let k=0;k<COILS;k++){
+    const y=H*(C0+k*CP);
+    s+=wire(y-gap/2,sw*1.4)+wire(y+gap/2,sw*1.4);
+  }
+  rings.innerHTML=`<svg viewBox="0 0 ${rw.toFixed(1)} ${H.toFixed(1)}" fill="none" stroke-linecap="round" aria-hidden="true">
+    <defs><linearGradient id="wg" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#6d6d74"/><stop offset=".3" stop-color="#c9c9cf"/>
+    <stop offset=".55" stop-color="#e9e9ee"/><stop offset=".8" stop-color="#a3a3aa"/><stop offset="1" stop-color="#5d5d64"/></linearGradient></defs>${s}</svg>`;
+}
+function geometry(i){
+  const nb=NB[i], ar=nb.ar, mob=isMob();
+  const availH=mob?innerHeight*.64:innerHeight*.74, availW=mob?innerWidth*.8:innerWidth*.88/2;
+  let H=Math.min(availH,availW/ar), W=H*ar; const d=Math.max(7,W*.03);
+  const r=nb.el.getBoundingClientRect();
+  return {W,H,d,cx0:r.left+r.width/2,cy0:r.top+r.height/2,s0:r.height/H,cx:innerWidth/2,cy:mob?innerHeight/2+12:innerHeight/2-8};
+}
+const T=(x,y,s,rx=0,ry=0,rz=0)=>`translate3d(${x}px,${y}px,0) translate(-50%,-50%) scale(${s}) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`;
+const fadeIn=(el,ms,delay=0)=>el.animate([{opacity:0},{opacity:1}],{duration:ms,delay,fill:'forwards'});
+
+function buildLeaves(){
+  leavesEl.innerHTML=''; leaves=[];
+  for(let i=0;i<LEAVES;i++){
+    const lf=document.createElement('div'); lf.className='leaf';
+    lf.innerHTML='<div class="face front"><div class="sheet right"><div class="pat"></div></div><div class="fshade"></div></div>'+
+                 '<div class="face back"><div class="sheet left"><div class="pat"></div></div><div class="fshade"></div></div>';
+    lf.style.transform=`translateZ(${ZU(i)}px) rotateY(0deg)`;
+    leavesEl.appendChild(lf); leaves.push(lf);
+  }
+}
+// filled notebooks: what's glued on each page. L<n>/R<n> = left/right page of spread n (spread 1 is the first one you see)
+const BOOK_PAGES={tattoo:{"R1": "<div class=\"tp\" style=\"left:-1.478%;top:-0.407%;width:108.812%;height:104.532%\"><img src=\"assets/tt/s1-body.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"pug tattoo on the ribs, seen on the body\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:7.711%;top:7.056%;width:41.791%;height:26.524%;transform:rotate(12.33deg)\"><img src=\"assets/tt/s1-pug.jpg\" style=\"left:-38.504%;top:-3.931%;width:138.504%\" alt=\"the pug who inspired it\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:8.428%;top:64.341%;width:47.479%;height:29.659%;transform:rotate(-5.83deg)\"><img src=\"assets/tt/s1-close.jpg\" style=\"left:-47.537%;top:-121.591%;width:184.729%\" alt=\"close-up of the pug tattoo with birds and sparkles\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(7.93 25.42) scale(0.81685)\"><defs><clipPath id=\"tc1\"><path d=\"M8.5,0 L209.5,0 L218.0,13.5 L210.8,25.0 L218.0,36.5 L209.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\"/></clipPath></defs><path d=\"M8.5,0 L209.5,0 L218.0,13.5 L210.8,25.0 L218.0,36.5 L209.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\" fill=\"#c8b0d4\"/><g clip-path=\"url(#tc1)\"><path d=\"M-10.0,54 L21.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.5\"/><path d=\"M21.0,54 L52.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.5\"/><path d=\"M52.0,54 L83.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.5\"/><path d=\"M83.0,54 L114.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.5\"/><path d=\"M114.0,54 L145.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.5\"/><path d=\"M145.0,54 L176.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.5\"/><path d=\"M176.0,54 L207.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.5\"/><path d=\"M207.0,54 L238.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.5\"/></g></g><g class=\"dc\" transform=\"translate(502.47 500.85) scale(0.79418)\"><g fill=\"none\" stroke=\"#e8a48e\" stroke-width=\"5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M62.0,3 Q28.8,8.2 3,38.0\"/><path d=\"M5,15.6 L3,38.0 L24.3,39.0\"/></g></g></svg>", "L2": "<div class=\"tp\" style=\"left:42.212%;top:45.129%;width:53.076%;height:50.989%\"><img src=\"assets/tt/s2-cat.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"cat with a window and stars on the side\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:6.290%;top:7.762%;width:51.334%;height:49.315%\"><img src=\"assets/tt/s2-dog.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"line-art dog with flowers on a forearm\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(29.00 46.08) scale(0.81585)\"><defs><clipPath id=\"tc2\"><path d=\"M8.5,0 L166.5,0 L175.0,13.5 L167.8,25.0 L175.0,36.5 L166.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\"/></clipPath><mask id=\"tm2\"><rect x=\"-5\" y=\"-5\" width=\"185\" height=\"60\" fill=\"#fff\"/><g fill=\"#000\"><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\"/></g></mask></defs><path d=\"M8.5,0 L166.5,0 L175.0,13.5 L167.8,25.0 L175.0,36.5 L166.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\" fill=\"#ddb2ca\" mask=\"url(#tm2)\"/><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"17.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"77.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"137.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"47.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"107.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"17.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"77.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"137.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"47.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"107.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"17.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"77.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"137.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"47.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"107.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"17.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"77.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"137.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/></g><g class=\"dc\" transform=\"translate(499.52 133.27) scale(0.81153)\"><path d=\"M0,-28.0 Q3.6,-3.6 29.0,0 Q3.6,3.6 0,28.0 Q-3.6,3.6 -29.0,0 Q-3.6,-3.6 0,-28.0 Z\" fill=\"#a286c6\" transform=\"translate(29.0,28.0)\"/><circle cx=\"29.0\" cy=\"28.0\" r=\"1.96\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(537.72 179.91) scale(0.80983)\"><path d=\"M0,-14.0 Q1.8,-1.8 15.0,0 Q1.8,1.8 0,14.0 Q-1.8,1.8 -15.0,0 Q-1.8,-1.8 0,-14.0 Z\" fill=\"#d6a24a\" transform=\"translate(15.0,14.0)\"/></g></svg>", "R2": "<div class=\"tp\" style=\"left:14.955%;top:15.984%;width:71.944%;height:69.115%\"><img src=\"assets/tt/s2-tape.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"cassette tattoo reading childhood trauma\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(522.91 846.29) scale(0.77759)\"><defs><clipPath id=\"tc3\"><path d=\"M8.5,0 L195.5,0 L204.0,13.5 L196.8,25.0 L204.0,36.5 L195.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\"/></clipPath></defs><path d=\"M8.5,0 L195.5,0 L204.0,13.5 L196.8,25.0 L204.0,36.5 L195.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\" fill=\"#bdcdae\"/><circle cx=\"33.6\" cy=\"27.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"27.4\" cy=\"33.3\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"19.3\" cy=\"30.8\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"17.4\" cy=\"22.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"23.6\" cy=\"16.7\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"31.7\" cy=\"19.2\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"25.5\" cy=\"25.0\" r=\"4.2\" fill=\"#e2bf62\"/><circle cx=\"84.6\" cy=\"27.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"78.4\" cy=\"33.3\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"70.3\" cy=\"30.8\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"68.4\" cy=\"22.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"74.6\" cy=\"16.7\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"82.7\" cy=\"19.2\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"76.5\" cy=\"25.0\" r=\"4.2\" fill=\"#e2bf62\"/><circle cx=\"135.6\" cy=\"27.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"129.4\" cy=\"33.3\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"121.3\" cy=\"30.8\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"119.4\" cy=\"22.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"125.6\" cy=\"16.7\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"133.7\" cy=\"19.2\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"127.5\" cy=\"25.0\" r=\"4.2\" fill=\"#e2bf62\"/><circle cx=\"186.6\" cy=\"27.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"180.4\" cy=\"33.3\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"172.3\" cy=\"30.8\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"170.4\" cy=\"22.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"176.6\" cy=\"16.7\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"184.7\" cy=\"19.2\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"178.5\" cy=\"25.0\" r=\"4.2\" fill=\"#e2bf62\"/></g></svg>", "L3": "<div class=\"tp\" style=\"left:-22.077%;top:5.012%;width:152.065%;height:94.191%\"><img src=\"assets/tt/s3-shoulder.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"red scribble tattoo on the shoulder\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(712.20 33.69) scale(0.81655)\"><defs><clipPath id=\"tc4\"><path d=\"M7.7,0 L177.3,0 L185.0,12.2 L178.5,22.5 L185.0,32.9 L177.3,45.0 L7.7,45.0 L0,32.9 L6.5,22.5 L0,12.2 Z\"/></clipPath></defs><path d=\"M7.7,0 L177.3,0 L185.0,12.2 L178.5,22.5 L185.0,32.9 L177.3,45.0 L7.7,45.0 L0,32.9 L6.5,22.5 L0,12.2 Z\" fill=\"#d6c6a2\"/><g clip-path=\"url(#tc4)\"><rect x=\"25.3\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 27.9 14.9)\" fill=\"#fffaf2\"/><rect x=\"50.5\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 53.1 14.9)\" fill=\"#fffaf2\"/><rect x=\"75.7\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 78.3 14.9)\" fill=\"#fffaf2\"/><rect x=\"100.9\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 103.5 14.9)\" fill=\"#fffaf2\"/><rect x=\"126.1\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 128.7 14.9)\" fill=\"#fffaf2\"/><rect x=\"151.3\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 153.9 14.9)\" fill=\"#fffaf2\"/><rect x=\"25.3\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 27.9 31.0)\" fill=\"#fffaf2\"/><rect x=\"50.5\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 53.1 31.0)\" fill=\"#fffaf2\"/><rect x=\"75.7\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 78.3 31.0)\" fill=\"#fffaf2\"/><rect x=\"100.9\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 103.5 31.0)\" fill=\"#fffaf2\"/><rect x=\"126.1\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 128.7 31.0)\" fill=\"#fffaf2\"/><rect x=\"151.3\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 153.9 31.0)\" fill=\"#fffaf2\"/></g></g></svg>", "R3": "<div class=\"tp\" style=\"left:10.625%;top:25.387%;width:78.284%;height:46.019%\"><img src=\"assets/tt/s3-close.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"close-up: tut obitayut emotsii\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(-8.26 33.69) scale(0.81655)\"><defs><clipPath id=\"tc4\"><path d=\"M7.7,0 L177.3,0 L185.0,12.2 L178.5,22.5 L185.0,32.9 L177.3,45.0 L7.7,45.0 L0,32.9 L6.5,22.5 L0,12.2 Z\"/></clipPath></defs><path d=\"M7.7,0 L177.3,0 L185.0,12.2 L178.5,22.5 L185.0,32.9 L177.3,45.0 L7.7,45.0 L0,32.9 L6.5,22.5 L0,12.2 Z\" fill=\"#d6c6a2\"/><g clip-path=\"url(#tc4)\"><rect x=\"25.3\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 27.9 14.9)\" fill=\"#fffaf2\"/><rect x=\"50.5\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 53.1 14.9)\" fill=\"#fffaf2\"/><rect x=\"75.7\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 78.3 14.9)\" fill=\"#fffaf2\"/><rect x=\"100.9\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 103.5 14.9)\" fill=\"#fffaf2\"/><rect x=\"126.1\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 128.7 14.9)\" fill=\"#fffaf2\"/><rect x=\"151.3\" y=\"12.3\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 153.9 14.9)\" fill=\"#fffaf2\"/><rect x=\"25.3\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 27.9 31.0)\" fill=\"#fffaf2\"/><rect x=\"50.5\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 53.1 31.0)\" fill=\"#fffaf2\"/><rect x=\"75.7\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 78.3 31.0)\" fill=\"#fffaf2\"/><rect x=\"100.9\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 103.5 31.0)\" fill=\"#fffaf2\"/><rect x=\"126.1\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 128.7 31.0)\" fill=\"#fffaf2\"/><rect x=\"151.3\" y=\"28.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 153.9 31.0)\" fill=\"#fffaf2\"/></g></g><g class=\"dc\" transform=\"translate(623.07 84.81) scale(0.81370)\"><path d=\"M0,-32.0 Q4.2,-4.2 33.0,0 Q4.2,4.2 0,32.0 Q-4.2,4.2 -33.0,0 Q-4.2,-4.2 0,-32.0 Z\" fill=\"#b87474\" transform=\"translate(33.0,32.0)\"/><circle cx=\"33.0\" cy=\"32.0\" r=\"2.24\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(683.07 134.91) scale(0.81192)\"><path d=\"M0,-16.0 Q2.1,-2.1 17.0,0 Q2.1,2.1 0,16.0 Q-2.1,2.1 -17.0,0 Q-2.1,-2.1 0,-16.0 Z\" fill=\"#d6a24a\" transform=\"translate(17.0,16.0)\"/></g><g class=\"dc\" transform=\"translate(418.75 801.30) scale(0.77990)\"><path d=\"M0.0,12.4 L3.0,14.7 L6.0,17.2 L9.1,19.7 L12.1,22.2 L15.1,24.6 L18.1,27.0 L21.1,29.2 L24.1,31.1 L27.2,32.7 L30.2,34.1 L33.2,35.0 L36.2,35.6 L39.2,35.8 L42.2,35.6 L45.3,35.0 L48.3,34.0 L51.3,32.6 L54.3,31.0 L57.3,29.0 L60.3,26.8 L63.4,24.5 L66.4,22.0 L69.4,19.5 L72.4,17.0 L75.4,14.6 L78.4,12.3 L81.5,10.2 L84.5,8.3 L87.5,6.8 L90.5,5.6 L93.5,4.7 L96.5,4.3 L99.6,4.2 L102.6,4.6 L105.6,5.3 L108.6,6.4 L111.6,7.9 L114.6,9.7 L117.7,11.7 L120.7,13.9 L123.7,16.3 L126.7,18.8 L129.7,21.4 L132.7,23.8 L135.8,26.2 L138.8,28.5 L141.8,30.5 L144.8,32.2 L147.8,33.7 L150.8,34.7 L153.9,35.5 L156.9,35.8 L159.9,35.7 L162.9,35.2 L165.9,34.3 L168.9,33.1 L172.0,31.5 L175.0,29.7 L178.0,27.6\" fill=\"none\" stroke=\"#a286c6\" stroke-width=\"4.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></g></svg>", "L4": "<div class=\"tp\" style=\"left:13.330%;top:21.118%;width:73.540%;height:53.898%;transform:rotate(-11.07deg)\"><img src=\"assets/tt/s4-chain.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"red chain and heart outline on the shoulder\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(78.30 77.40) scale(0.81438)\"><defs><clipPath id=\"tc5\"><path d=\"M8.2,0 L186.8,0 L195.0,13.0 L188.1,24.0 L195.0,35.0 L186.8,48.0 L8.2,48.0 L0,35.0 L6.9,24.0 L0,13.0 Z\"/></clipPath><mask id=\"tm5\"><rect x=\"-5\" y=\"-5\" width=\"205\" height=\"58\" fill=\"#fff\"/><g fill=\"#000\"><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\"/><rect x=\"167.0\" y=\"28.0\" width=\"15\" height=\"14\"/></g></mask></defs><path d=\"M8.2,0 L186.8,0 L195.0,13.0 L188.1,24.0 L195.0,35.0 L186.8,48.0 L8.2,48.0 L0,35.0 L6.9,24.0 L0,13.0 Z\" fill=\"#bed2c6\" mask=\"url(#tm5)\"/><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"167.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"17.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"77.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"137.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"47.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"107.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"167.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"17.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"77.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"137.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"47.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"107.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"167.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"17.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"77.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"137.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"47.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"107.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"167.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"17.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"77.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"137.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"47.0\" y=\"252.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.30\"/><rect x=\"107.0\" y=\"252.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.30\"/><rect x=\"167.0\" y=\"252.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.30\"/><rect x=\"17.0\" y=\"280.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.27\"/><rect x=\"77.0\" y=\"280.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.27\"/><rect x=\"137.0\" y=\"280.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.27\"/></g></svg>", "R4": "<div class=\"tp\" style=\"left:10.252%;top:14.325%;width:78.947%;height:75.842%\"><img src=\"assets/tt/s4-ego.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"ego tattoo on the arm\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(97.78 632.31) scale(0.78759)\"><g fill=\"none\" stroke=\"#a286c6\" stroke-width=\"4.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M0.8,55.1 L40.7,17.4 L81.3,13.9\"/><path d=\"M61.4,1.2 L81.3,13.9 L61.4,29.0\"/></g></g><g class=\"dc\" transform=\"translate(648.36 840.09) scale(0.77770)\"><circle cx=\"29.0\" cy=\"14.3\" r=\"13.9\" fill=\"#d27e9a\"/><circle cx=\"43.9\" cy=\"25.2\" r=\"13.9\" fill=\"#d27e9a\"/><circle cx=\"38.2\" cy=\"42.7\" r=\"13.9\" fill=\"#d27e9a\"/><circle cx=\"19.8\" cy=\"42.7\" r=\"13.9\" fill=\"#d27e9a\"/><circle cx=\"14.1\" cy=\"25.2\" r=\"13.9\" fill=\"#d27e9a\"/><circle cx=\"29.0\" cy=\"30.0\" r=\"9.9\" fill=\"#f4d088\"/></g></svg>", "L5": "<div class=\"tp\" style=\"left:9.785%;top:12.023%;width:78.152%;height:34.160%;transform:rotate(-7.20deg)\"><img src=\"assets/tt/s5-youth.jpg\" style=\"left:-0.000%;top:-66.593%;width:100.000%\" alt=\"colorful word yunost\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:11.951%;top:48.302%;width:75.219%;height:40.499%;transform:rotate(7.44deg)\"><img src=\"assets/tt/s5-blocks.jpg\" style=\"left:-38.126%;top:-83.090%;width:163.399%\" alt=\"toy blocks tattoo\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(203.30 69.17) scale(0.81484)\"><defs><clipPath id=\"tc6\"><path d=\"M7.7,0 L197.3,0 L205.0,12.2 L198.5,22.5 L205.0,32.9 L197.3,45.0 L7.7,45.0 L0,32.9 L6.5,22.5 L0,12.2 Z\"/></clipPath></defs><path d=\"M7.7,0 L197.3,0 L205.0,12.2 L198.5,22.5 L205.0,32.9 L197.3,45.0 L7.7,45.0 L0,32.9 L6.5,22.5 L0,12.2 Z\" fill=\"#e6c2a2\"/><g clip-path=\"url(#tc6)\"><path d=\"M-9.0,49 L18.9,-4\" stroke=\"#fcf4e4\" stroke-width=\"8.6\"/><path d=\"M18.9,49 L46.8,-4\" stroke=\"#fcf4e4\" stroke-width=\"8.6\"/><path d=\"M46.8,49 L74.7,-4\" stroke=\"#fcf4e4\" stroke-width=\"8.6\"/><path d=\"M74.7,49 L102.6,-4\" stroke=\"#fcf4e4\" stroke-width=\"8.6\"/><path d=\"M102.6,49 L130.5,-4\" stroke=\"#fcf4e4\" stroke-width=\"8.6\"/><path d=\"M130.5,49 L158.4,-4\" stroke=\"#fcf4e4\" stroke-width=\"8.6\"/><path d=\"M158.4,49 L186.3,-4\" stroke=\"#fcf4e4\" stroke-width=\"8.6\"/><path d=\"M186.3,49 L214.2,-4\" stroke=\"#fcf4e4\" stroke-width=\"8.6\"/></g></g><g class=\"dc\" transform=\"translate(641.58 466.57) scale(0.79561)\"><path d=\"M0,-26.0 Q3.4,-3.4 27.0,0 Q3.4,3.4 0,26.0 Q-3.4,3.4 -27.0,0 Q-3.4,-3.4 0,-26.0 Z\" fill=\"#a286c6\" transform=\"translate(27.0,26.0)\"/><circle cx=\"27.0\" cy=\"26.0\" r=\"1.82\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(689.26 444.19) scale(0.79713)\"><path d=\"M0,-14.0 Q1.8,-1.8 15.0,0 Q1.8,1.8 0,14.0 Q-1.8,1.8 -15.0,0 Q-1.8,-1.8 0,-14.0 Z\" fill=\"#d6a24a\" transform=\"translate(15.0,14.0)\"/></g></svg>", "R5": "<div class=\"tp\" style=\"left:3.220%;top:20.369%;width:91.571%;height:54.997%\"><img src=\"assets/tt/s5-mahabbat.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"colorful letters mahabbat with birds\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(437.33 859.44) scale(0.77715)\"><path d=\"M0.0,12.4 L3.0,14.7 L6.0,17.2 L9.1,19.7 L12.1,22.2 L15.1,24.6 L18.1,27.0 L21.1,29.2 L24.1,31.1 L27.2,32.7 L30.2,34.1 L33.2,35.0 L36.2,35.6 L39.2,35.8 L42.2,35.6 L45.3,35.0 L48.3,34.0 L51.3,32.6 L54.3,31.0 L57.3,29.0 L60.3,26.8 L63.4,24.5 L66.4,22.0 L69.4,19.5 L72.4,17.0 L75.4,14.6 L78.4,12.3 L81.5,10.2 L84.5,8.3 L87.5,6.8 L90.5,5.6 L93.5,4.7 L96.5,4.3 L99.6,4.2 L102.6,4.6 L105.6,5.3 L108.6,6.4 L111.6,7.9 L114.6,9.7 L117.7,11.7 L120.7,13.9 L123.7,16.3 L126.7,18.8 L129.7,21.4 L132.7,23.8 L135.8,26.2 L138.8,28.5 L141.8,30.5 L144.8,32.2 L147.8,33.7 L150.8,34.7 L153.9,35.5 L156.9,35.8 L159.9,35.7 L162.9,35.2 L165.9,34.3 L168.9,33.1 L172.0,31.5 L175.0,29.7 L178.0,27.6\" fill=\"none\" stroke=\"#92a67e\" stroke-width=\"4.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></g></svg>", "L6": "<div class=\"tp\" style=\"left:10.229%;top:14.456%;width:81.258%;height:75.303%\"><img src=\"assets/tt/s6-drakosha.jpg\" style=\"left:-22.658%;top:-18.411%;width:127.768%\" alt=\"drakosha toothpaste tube tattoo\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(97.98 56.80) scale(0.81534)\"><defs><clipPath id=\"tc7\"><path d=\"M8.5,0 L201.5,0 L210.0,13.5 L202.8,25.0 L210.0,36.5 L201.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\"/></clipPath></defs><path d=\"M8.5,0 L201.5,0 L210.0,13.5 L202.8,25.0 L210.0,36.5 L201.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\" fill=\"#c6b6d6\"/><circle cx=\"34.4\" cy=\"27.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"28.1\" cy=\"33.3\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"20.0\" cy=\"30.8\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"18.1\" cy=\"22.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"24.4\" cy=\"16.7\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"32.5\" cy=\"19.2\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"26.2\" cy=\"25.0\" r=\"4.2\" fill=\"#e2bf62\"/><circle cx=\"86.9\" cy=\"27.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"80.6\" cy=\"33.3\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"72.5\" cy=\"30.8\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"70.6\" cy=\"22.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"76.9\" cy=\"16.7\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"85.0\" cy=\"19.2\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"78.8\" cy=\"25.0\" r=\"4.2\" fill=\"#e2bf62\"/><circle cx=\"139.4\" cy=\"27.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"133.1\" cy=\"33.3\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"125.0\" cy=\"30.8\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"123.1\" cy=\"22.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"129.4\" cy=\"16.7\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"137.5\" cy=\"19.2\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"131.2\" cy=\"25.0\" r=\"4.2\" fill=\"#e2bf62\"/><circle cx=\"191.9\" cy=\"27.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"185.6\" cy=\"33.3\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"177.5\" cy=\"30.8\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"175.6\" cy=\"22.5\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"181.9\" cy=\"16.7\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"190.0\" cy=\"19.2\" r=\"5.5\" fill=\"#fffaf2\"/><circle cx=\"183.8\" cy=\"25.0\" r=\"4.2\" fill=\"#e2bf62\"/></g></svg>", "R6": "<div class=\"tp\" style=\"left:8.058%;top:6.726%;width:65.818%;height:45.111%;transform:rotate(-2.85deg)\"><img src=\"assets/tt/s6-atom.jpg\" style=\"left:-0.000%;top:-4.601%;width:100.000%\" alt=\"atom with a green cluster\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:32.821%;top:61.909%;width:59.971%;height:30.507%;transform:rotate(8.21deg)\"><img src=\"assets/tt/s6-cloud.jpg\" style=\"left:-20.723%;top:-115.700%;width:180.723%\" alt=\"cloud puppy with sparkles\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(646.81 40.30) scale(0.81488)\"><g fill=\"none\" stroke=\"#d6a24a\" stroke-width=\"4.4\" stroke-linecap=\"butt\"><path d=\"M2.2,49.7 L2.2,22.0 A19.8,19.8 0 0 1 41.8,22.0 L41.8,91.0 A19.8,19.8 0 0 1 2.2,91.0 L2.2,67.8\"/><path d=\"M11.9,53.1 L11.9,30.9 A10.6,10.6 0 0 1 33.0,30.9 L33.0,79.8 A10.6,10.6 0 0 1 11.9,79.8 L11.9,64.4\"/></g></g><g class=\"dc\" transform=\"translate(74.68 697.52) scale(0.78468)\"><path d=\"M0,-24.0 Q3.1,-3.1 25.0,0 Q3.1,3.1 0,24.0 Q-3.1,3.1 -25.0,0 Q-3.1,-3.1 0,-24.0 Z\" fill=\"#92a67e\" transform=\"translate(25.0,24.0)\"/><circle cx=\"25.0\" cy=\"24.0\" r=\"1.68\" fill=\"#fffaf2\"/></g></svg>", "L7": "<div class=\"tp\" style=\"left:2.263%;top:5.538%;width:93.317%;height:89.647%\"><img src=\"assets/tt/s7-phone.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"pink flip phone tattoo\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(18.61 21.29) scale(0.81717)\"><defs><clipPath id=\"tc8\"><path d=\"M7.5,0 L179.5,0 L187.0,11.9 L180.6,22.0 L187.0,32.1 L179.5,44.0 L7.5,44.0 L0,32.1 L6.4,22.0 L0,11.9 Z\"/></clipPath></defs><path d=\"M7.5,0 L179.5,0 L187.0,11.9 L180.6,22.0 L187.0,32.1 L179.5,44.0 L7.5,44.0 L0,32.1 L6.4,22.0 L0,11.9 Z\" fill=\"#eac2c6\"/><g clip-path=\"url(#tc8)\"><rect x=\"24.7\" y=\"11.9\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 27.3 14.5)\" fill=\"#fffaf2\"/><rect x=\"49.3\" y=\"11.9\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 51.9 14.5)\" fill=\"#fffaf2\"/><rect x=\"74.0\" y=\"11.9\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 76.6 14.5)\" fill=\"#fffaf2\"/><rect x=\"98.6\" y=\"11.9\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 101.2 14.5)\" fill=\"#fffaf2\"/><rect x=\"123.2\" y=\"11.9\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 125.8 14.5)\" fill=\"#fffaf2\"/><rect x=\"147.9\" y=\"11.9\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 150.5 14.5)\" fill=\"#fffaf2\"/><rect x=\"24.7\" y=\"27.8\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 27.3 30.4)\" fill=\"#fffaf2\"/><rect x=\"49.3\" y=\"27.8\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 51.9 30.4)\" fill=\"#fffaf2\"/><rect x=\"74.0\" y=\"27.8\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 76.6 30.4)\" fill=\"#fffaf2\"/><rect x=\"98.6\" y=\"27.8\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 101.2 30.4)\" fill=\"#fffaf2\"/><rect x=\"123.2\" y=\"27.8\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 125.8 30.4)\" fill=\"#fffaf2\"/><rect x=\"147.9\" y=\"27.8\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 150.5 30.4)\" fill=\"#fffaf2\"/></g></g></svg>", "R7": "<div class=\"tp\" style=\"left:4.863%;top:5.883%;width:90.836%;height:87.263%\"><img src=\"assets/tt/s7-bear.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"red teddy bear with a broken heart\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(8.58 480.13) scale(0.79500)\"><g fill=\"none\" stroke=\"#d27e9a\" stroke-width=\"4.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M0.7,47.5 L33.8,15.0 L67.6,12.0\"/><path d=\"M51.1,1.0 L67.6,12.0 L51.1,25.0\"/></g></g><g class=\"dc\" transform=\"translate(632.70 840.09) scale(0.77784)\"><path d=\"M0,-26.0 Q3.4,-3.4 27.0,0 Q3.4,3.4 0,26.0 Q-3.4,3.4 -27.0,0 Q-3.4,-3.4 0,-26.0 Z\" fill=\"#d6a24a\" transform=\"translate(27.0,26.0)\"/><circle cx=\"27.0\" cy=\"26.0\" r=\"1.82\" fill=\"#fffaf2\"/></g></svg>", "L8": "<div class=\"tp\" style=\"left:2.954%;top:5.161%;width:97.208%;height:93.385%\"><img src=\"assets/tt/s8-wings.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"wings on the back of the neck\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(649.52 741.32) scale(0.78245)\"><path d=\"M0,-28.0 Q3.6,-3.6 29.0,0 Q3.6,3.6 0,28.0 Q-3.6,3.6 -29.0,0 Q-3.6,-3.6 0,-28.0 Z\" fill=\"#a286c6\" transform=\"translate(29.0,28.0)\"/><circle cx=\"29.0\" cy=\"28.0\" r=\"1.96\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(695.96 776.41) scale(0.78134)\"><path d=\"M0,-13.0 Q1.7,-1.7 14.0,0 Q1.7,1.7 0,13.0 Q-1.7,1.7 -14.0,0 Q-1.7,-1.7 0,-13.0 Z\" fill=\"#d27e9a\" transform=\"translate(14.0,13.0)\"/></g></svg>", "R8": "<div class=\"tp\" style=\"left:3.748%;top:6.407%;width:94.396%;height:90.683%\"><img src=\"assets/tt/s8-back.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"red wings on the back\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(436.73 29.56) scale(0.81667)\"><defs><clipPath id=\"tc9\"><path d=\"M8.3,0 L191.7,0 L200.0,13.2 L192.9,24.5 L200.0,35.8 L191.7,49.0 L8.3,49.0 L0,35.8 L7.1,24.5 L0,13.2 Z\"/></clipPath></defs><path d=\"M8.3,0 L191.7,0 L200.0,13.2 L192.9,24.5 L200.0,35.8 L191.7,49.0 L8.3,49.0 L0,35.8 L7.1,24.5 L0,13.2 Z\" fill=\"#bec6de\"/><g clip-path=\"url(#tc9)\"><path d=\"M-9.8,53 L20.6,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.3\"/><path d=\"M20.6,53 L51.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.3\"/><path d=\"M51.0,53 L81.3,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.3\"/><path d=\"M81.3,53 L111.7,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.3\"/><path d=\"M111.7,53 L142.1,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.3\"/><path d=\"M142.1,53 L172.5,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.3\"/><path d=\"M172.5,53 L202.9,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.3\"/><path d=\"M202.9,53 L233.2,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.3\"/></g></g><g class=\"dc\" transform=\"translate(595.60 754.59) scale(0.78175)\"><circle cx=\"29.0\" cy=\"14.3\" r=\"13.9\" fill=\"#e6a68e\"/><circle cx=\"43.9\" cy=\"25.2\" r=\"13.9\" fill=\"#e6a68e\"/><circle cx=\"38.2\" cy=\"42.7\" r=\"13.9\" fill=\"#e6a68e\"/><circle cx=\"19.8\" cy=\"42.7\" r=\"13.9\" fill=\"#e6a68e\"/><circle cx=\"14.1\" cy=\"25.2\" r=\"13.9\" fill=\"#e6a68e\"/><circle cx=\"29.0\" cy=\"30.0\" r=\"9.9\" fill=\"#f4d088\"/></g></svg>", "L9": "<div class=\"tp\" style=\"left:3.001%;top:5.236%;width:97.153%;height:93.332%\"><img src=\"assets/tt/s9-youth-earth.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"matching youth and earth tattoos\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(3.92 17.15) scale(0.81599)\"><g fill=\"none\" stroke=\"#56485e\" stroke-width=\"4.4\" stroke-linecap=\"butt\"><path d=\"M2.2,49.7 L2.2,22.0 A19.8,19.8 0 0 1 41.8,22.0 L41.8,91.0 A19.8,19.8 0 0 1 2.2,91.0 L2.2,67.8\"/><path d=\"M11.9,53.1 L11.9,30.9 A10.6,10.6 0 0 1 33.0,30.9 L33.0,79.8 A10.6,10.6 0 0 1 11.9,79.8 L11.9,64.4\"/></g></g><g class=\"dc\" transform=\"translate(154.24 42.77) scale(0.81601)\"><defs><clipPath id=\"tc10\"><path d=\"M8.5,0 L191.5,0 L200.0,13.5 L192.8,25.0 L200.0,36.5 L191.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\"/></clipPath><mask id=\"tm10\"><rect x=\"-5\" y=\"-5\" width=\"210\" height=\"60\" fill=\"#fff\"/><g fill=\"#000\"><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\"/><rect x=\"167.0\" y=\"28.0\" width=\"15\" height=\"14\"/></g></mask></defs><path d=\"M8.5,0 L191.5,0 L200.0,13.5 L192.8,25.0 L200.0,36.5 L191.5,50.0 L8.5,50.0 L0,36.5 L7.2,25.0 L0,13.5 Z\" fill=\"#e2be9e\" mask=\"url(#tm10)\"/><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"167.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"17.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"77.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"137.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"47.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"107.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"167.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"17.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"77.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"137.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"47.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"107.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"167.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"17.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"77.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"137.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"47.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"107.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"167.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"17.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"77.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"137.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"47.0\" y=\"252.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.30\"/><rect x=\"107.0\" y=\"252.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.30\"/><rect x=\"167.0\" y=\"252.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.30\"/><rect x=\"17.0\" y=\"280.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.27\"/><rect x=\"77.0\" y=\"280.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.27\"/><rect x=\"137.0\" y=\"280.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.27\"/><rect x=\"47.0\" y=\"308.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.24\"/><rect x=\"107.0\" y=\"308.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.24\"/><rect x=\"167.0\" y=\"308.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.24\"/><rect x=\"17.0\" y=\"336.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.22\"/><rect x=\"77.0\" y=\"336.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.22\"/><rect x=\"137.0\" y=\"336.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.22\"/><rect x=\"47.0\" y=\"364.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.22\"/><rect x=\"107.0\" y=\"364.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.22\"/><rect x=\"167.0\" y=\"364.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.22\"/></g></svg>", "L1": "<svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"false\"><text class=\"tx\"><tspan x=\"64.5\" y=\"200.9\">selected tattoos, 2019–2023.</tspan><tspan x=\"64.5\" y=\"301.3\">my work ranged from ironic,</tspan><tspan x=\"64.5\" y=\"351.3\">childlike naive minimalism to</tspan><tspan x=\"64.5\" y=\"401.0\">bright, colorful pieces and</tspan><tspan x=\"64.5\" y=\"450.5\">nostalgic stories about memories</tspan><tspan x=\"64.5\" y=\"499.9\">and old wounds.</tspan><tspan x=\"64.5\" y=\"598.0\">every design was one of a kind.</tspan><tspan x=\"64.5\" y=\"646.7\">Some started as my sketches,</tspan><tspan x=\"64.5\" y=\"695.3\">others grew from a client’s story.</tspan><tspan x=\"64.5\" y=\"743.7\">Together we turned memories,</tspan><tspan x=\"64.5\" y=\"791.9\">losses and private meanings into</tspan><tspan x=\"64.5\" y=\"839.9\">something they could carry on</tspan><tspan x=\"64.5\" y=\"887.7\">their skin.</tspan></text><g class=\"dc\" transform=\"translate(578.31 102.08) scale(0.81315)\"><path d=\"M0,-25.0 Q3.2,-3.2 25.5,0 Q3.2,3.2 0,25.0 Q-3.2,3.2 -25.5,0 Q-3.2,-3.2 0,-25.0 Z\" fill=\"#d6a24a\" transform=\"translate(25.5,25.0)\"/><circle cx=\"25.5\" cy=\"25.0\" r=\"1.75\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(619.40 88.93) scale(0.81426)\"><path d=\"M0,-13.0 Q1.7,-1.7 14.0,0 Q1.7,1.7 0,13.0 Q-1.7,1.7 -14.0,0 Q-1.7,-1.7 0,-13.0 Z\" fill=\"#d27e9a\" transform=\"translate(14.0,13.0)\"/></g><g class=\"dc\" transform=\"translate(43.58 197.87) scale(0.80928)\"><path d=\"M0.0,4.5 L8.3,4.9 L16.6,5.5 L24.9,6.2 L33.2,6.8 L41.5,7.3 L49.8,7.6 L58.1,7.5 L66.4,7.2 L74.7,6.6 L83.1,6.0 L91.4,5.3 L99.7,4.7 L108.0,4.4 L116.3,4.4 L124.6,4.7 L132.9,5.2 L141.2,5.9 L149.5,6.6 L157.8,7.2 L166.1,7.5 L174.4,7.6 L182.7,7.4 L191.0,6.9 L199.3,6.2 L207.6,5.5 L215.9,4.9 L224.2,4.5 L232.5,4.4 L240.8,4.6 L249.2,5.0 L257.5,5.6 L265.8,6.3 L274.1,7.0 L282.4,7.4 L290.7,7.6 L299.0,7.5 L307.3,7.1 L315.6,6.5 L323.9,5.8 L332.2,5.2 L340.5,4.7 L348.8,4.4 L357.1,4.5 L365.4,4.8 L373.7,5.4 L382.0,6.1 L390.3,6.7 L398.6,7.3 L406.9,7.6 L415.3,7.6 L423.6,7.3 L431.9,6.7 L440.2,6.1 L448.5,5.4 L456.8,4.8 L465.1,4.5 L473.4,4.4 L481.7,4.6 L490.0,5.1\" fill=\"none\" stroke=\"#a286c6\" stroke-width=\"4.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></g></svg>", "R9": "<div class=\"tp\" style=\"left:19.000%;top:20.219%;width:62.000%;height:59.561%\"><img src=\"assets/tt/s9-seal.jpg\" style=\"left:0%;top:0%;width:100%\" alt=\"line tattoo of a lying puppy with stars, on the arm\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 720.46 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(561.66 622.06) scale(0.78785)\"><path d=\"M0,-35.0 Q4.5,-4.5 36.0,0 Q4.5,4.5 0,35.0 Q-4.5,4.5 -36.0,0 Q-4.5,-4.5 0,-35.0 Z\" fill=\"#a286c6\" transform=\"translate(36.0,35.0)\"/><circle cx=\"36.0\" cy=\"35.0\" r=\"2.45\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(635.00 596.81) scale(0.78977)\"><path d=\"M0,-16.0 Q2.1,-2.1 17.0,0 Q2.1,2.1 0,16.0 Q-2.1,2.1 -17.0,0 Q-2.1,-2.1 0,-16.0 Z\" fill=\"#d6a24a\" transform=\"translate(17.0,16.0)\"/></g><g class=\"dc\" transform=\"translate(207.16 867.94) scale(0.77718)\"><path d=\"M0.0,5.1 L3.7,5.6 L7.3,6.2 L11.0,6.9 L14.6,7.6 L18.3,8.4 L22.0,9.1 L25.6,9.8 L29.3,10.4 L32.9,10.9 L36.6,11.2 L40.3,11.4 L43.9,11.4 L47.6,11.2 L51.3,10.9 L54.9,10.4 L58.6,9.8 L62.2,9.1 L65.9,8.4 L69.6,7.6 L73.2,6.9 L76.9,6.2 L80.5,5.6 L84.2,5.1 L87.9,4.8 L91.5,4.6 L95.2,4.6 L98.8,4.8 L102.5,5.1 L106.2,5.6 L109.8,6.2 L113.5,6.8 L117.2,7.6 L120.8,8.3 L124.5,9.1 L128.1,9.8 L131.8,10.4 L135.5,10.8 L139.1,11.2 L142.8,11.4 L146.4,11.4 L150.1,11.2 L153.8,10.9 L157.4,10.5 L161.1,9.9 L164.7,9.2 L168.4,8.5 L172.1,7.7 L175.7,7.0 L179.4,6.3 L183.1,5.7 L186.7,5.2 L190.4,4.8 L194.0,4.6 L197.7,4.6 L201.4,4.8 L205.0,5.1 L208.7,5.5 L212.3,6.1 L216.0,6.8\" fill=\"none\" stroke=\"#d27e9a\" stroke-width=\"4.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></g></svg>"},
+merch:{"L1": "<div class=\"tp\" style=\"left:6.798%;top:10.496%;width:87.502%;height:80.688%\"><img src=\"assets/mc/m1-ruins.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"two people in bear me t-shirts on concrete ruins, with doodles\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 691.6 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(46.87 73.73) scale(0.80978)\"><defs><clipPath id=\"tc1\"><path d=\"M8.1,0 L188.1,0 L196.2,12.9 L189.3,24.0 L196.2,35.0 L188.1,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\"/></clipPath><mask id=\"tm1\"><rect x=\"-5\" y=\"-5\" width=\"206.238\" height=\"57.936\" fill=\"#fff\"/><g fill=\"#000\"><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\"/><rect x=\"167.0\" y=\"28.0\" width=\"15\" height=\"14\"/></g></mask></defs><path d=\"M8.1,0 L188.1,0 L196.2,12.9 L189.3,24.0 L196.2,35.0 L188.1,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\" fill=\"#bed2c6\" mask=\"url(#tm1)\"/><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"167.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"17.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"77.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"137.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"47.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"107.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"167.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"17.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"77.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"137.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"47.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"107.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"167.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"17.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"77.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"137.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"47.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"107.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"167.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"17.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"77.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"137.0\" y=\"224.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.32\"/><rect x=\"47.0\" y=\"252.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.30\"/><rect x=\"107.0\" y=\"252.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.30\"/><rect x=\"167.0\" y=\"252.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.30\"/></g></svg>", "L2": "<div class=\"tp\" style=\"left:3.975%;top:3.242%;width:58.702%;height:54.131%\"><img src=\"assets/mc/m2-collar.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"bear me t-shirt with a lace collar\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:46.084%;top:47.920%;width:50.994%;height:47.023%\"><img src=\"assets/mc/m2-thorns.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"portrait with a thorny doodle around the arm\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 691.6 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(152.90 9.32) scale(0.81302)\"><defs><clipPath id=\"tc2\"><path d=\"M8.1,0 L188.1,0 L196.2,12.9 L189.3,24.0 L196.2,35.0 L188.1,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\"/></clipPath></defs><path d=\"M8.1,0 L188.1,0 L196.2,12.9 L189.3,24.0 L196.2,35.0 L188.1,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\" fill=\"#bec6de\"/><g clip-path=\"url(#tc2)\"><path d=\"M-9.6,51.936 L20.1,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.1\"/><path d=\"M20.1,51.936 L49.9,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.1\"/><path d=\"M49.9,51.936 L79.6,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.1\"/><path d=\"M79.6,51.936 L109.3,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.1\"/><path d=\"M109.3,51.936 L139.0,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.1\"/><path d=\"M139.0,51.936 L168.7,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.1\"/><path d=\"M168.7,51.936 L198.5,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.1\"/><path d=\"M198.5,51.936 L228.2,-4\" stroke=\"#fcf4e4\" stroke-width=\"9.1\"/></g></g><g class=\"dc\" transform=\"translate(121.85 707.80) scale(0.77792)\"><path d=\"M0,-30.7 Q4.0,-4.0 32.2,0 Q4.0,4.0 0,30.7 Q-4.0,4.0 -32.2,0 Q-4.0,-4.0 0,-30.7 Z\" fill=\"#a286c6\" transform=\"translate(32.2,30.7)\"/><circle cx=\"32.2\" cy=\"30.7\" r=\"2.15\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(167.97 690.21) scale(0.77939)\"><path d=\"M0,-15.0 Q1.9,-1.9 15.7,0 Q1.9,1.9 0,15.0 Q-1.9,1.9 -15.7,0 Q-1.9,-1.9 0,-15.0 Z\" fill=\"#d6a24a\" transform=\"translate(15.7,15.0)\"/></g></svg>", "R2": "<div class=\"tp\" style=\"left:7.684%;top:12.047%;width:83.961%;height:77.424%\"><img src=\"assets/mc/m2-tee.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"close-up of the bear print t-shirt\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 691.6 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(521.87 95.95) scale(0.80875)\"><defs><clipPath id=\"tc3\"><path d=\"M7.4,0 L179.9,0 L187.2,11.7 L181.0,21.7 L187.2,31.7 L179.9,43.4 L7.4,43.4 L0,31.7 L6.3,21.7 L0,11.7 Z\"/></clipPath></defs><path d=\"M7.4,0 L179.9,0 L187.2,11.7 L181.0,21.7 L187.2,31.7 L179.9,43.4 L7.4,43.4 L0,31.7 L6.3,21.7 L0,11.7 Z\" fill=\"#efe2b8\"/><g clip-path=\"url(#tc3)\"><rect x=\"24.3\" y=\"11.7\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 26.9 14.3)\" fill=\"#fffaf2\"/><rect x=\"48.7\" y=\"11.7\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 51.3 14.3)\" fill=\"#fffaf2\"/><rect x=\"73.0\" y=\"11.7\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 75.6 14.3)\" fill=\"#fffaf2\"/><rect x=\"97.3\" y=\"11.7\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 99.9 14.3)\" fill=\"#fffaf2\"/><rect x=\"121.6\" y=\"11.7\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 124.2 14.3)\" fill=\"#fffaf2\"/><rect x=\"146.0\" y=\"11.7\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 148.6 14.3)\" fill=\"#fffaf2\"/><rect x=\"170.3\" y=\"11.7\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 172.9 14.3)\" fill=\"#fffaf2\"/><rect x=\"24.3\" y=\"27.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 26.9 30.0)\" fill=\"#fffaf2\"/><rect x=\"48.7\" y=\"27.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 51.3 30.0)\" fill=\"#fffaf2\"/><rect x=\"73.0\" y=\"27.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 75.6 30.0)\" fill=\"#fffaf2\"/><rect x=\"97.3\" y=\"27.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 99.9 30.0)\" fill=\"#fffaf2\"/><rect x=\"121.6\" y=\"27.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 124.2 30.0)\" fill=\"#fffaf2\"/><rect x=\"146.0\" y=\"27.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 148.6 30.0)\" fill=\"#fffaf2\"/><rect x=\"170.3\" y=\"27.4\" width=\"5.2\" height=\"5.2\" transform=\"rotate(45 172.9 30.0)\" fill=\"#fffaf2\"/></g></g><g class=\"dc\" transform=\"translate(636.20 830.19) scale(0.77092)\"><g fill=\"none\" stroke=\"#d6a24a\" stroke-width=\"4.4\" stroke-linecap=\"butt\"><path d=\"M2.2,49.4 L2.2,21.7 A19.5,19.5 0 0 1 41.242,21.7 L41.242,90.6 A19.5,19.5 0 0 1 2.2,90.6 L2.2,67.4\"/><path d=\"M11.7,52.8 L11.7,30.6 A10.4,10.4 0 0 1 32.6,30.6 L32.6,79.5 A10.4,10.4 0 0 1 11.7,79.5 L11.7,64.0\"/></g></g></svg>", "L3": "<div class=\"tp\" style=\"left:6.055%;top:8.555%;width:89.438%;height:82.474%\"><img src=\"assets/mc/m3-field.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"two people in tall grass wearing the t-shirts\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 691.6 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(55.48 60.75) scale(0.81043)\"><defs><clipPath id=\"tc4\"><path d=\"M8.1,0 L197.8,0 L206.0,12.9 L199.0,24.0 L206.0,35.0 L197.8,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\"/></clipPath></defs><path d=\"M8.1,0 L197.8,0 L206.0,12.9 L199.0,24.0 L206.0,35.0 L197.8,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\" fill=\"#bdcdae\"/><circle cx=\"33.5\" cy=\"26.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"27.6\" cy=\"31.9\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"19.8\" cy=\"29.5\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"18.0\" cy=\"21.6\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"23.9\" cy=\"16.0\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"31.7\" cy=\"18.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"25.7\" cy=\"24.0\" r=\"4.1\" fill=\"#e2bf62\"/><circle cx=\"85.0\" cy=\"26.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"79.0\" cy=\"31.9\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"71.3\" cy=\"29.5\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"69.5\" cy=\"21.6\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"75.4\" cy=\"16.0\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"83.2\" cy=\"18.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"77.2\" cy=\"24.0\" r=\"4.1\" fill=\"#e2bf62\"/><circle cx=\"136.5\" cy=\"26.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"130.5\" cy=\"31.9\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"122.8\" cy=\"29.5\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"120.9\" cy=\"21.6\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"126.9\" cy=\"16.0\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"134.7\" cy=\"18.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"128.7\" cy=\"24.0\" r=\"4.1\" fill=\"#e2bf62\"/><circle cx=\"188.0\" cy=\"26.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"182.0\" cy=\"31.9\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"174.2\" cy=\"29.5\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"172.4\" cy=\"21.6\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"178.4\" cy=\"16.0\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"186.2\" cy=\"18.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"180.2\" cy=\"24.0\" r=\"4.1\" fill=\"#e2bf62\"/></g><g class=\"dc\" transform=\"translate(570.66 931.22) scale(0.76709)\"><path d=\"M0,-26.2 Q3.4,-3.4 27.0,0 Q3.4,3.4 0,26.2 Q-3.4,3.4 -27.0,0 Q-3.4,-3.4 0,-26.2 Z\" fill=\"#d6a24a\" transform=\"translate(27.0,26.2)\"/><circle cx=\"27.0\" cy=\"26.2\" r=\"1.84\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(613.23 916.84) scale(0.76830)\"><path d=\"M0,-12.7 Q1.7,-1.7 13.5,0 Q1.7,1.7 0,12.7 Q-1.7,1.7 -13.5,0 Q-1.7,-1.7 0,-12.7 Z\" fill=\"#b9a0d8\" transform=\"translate(13.5,12.7)\"/></g></svg>", "R3": "<div class=\"tp\" style=\"left:4.952%;top:9.655%;width:88.168%;height:81.303%\"><img src=\"assets/mc/m3-rain.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"girl among stones holding a flower, with rain doodles\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 691.6 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(477.70 67.55) scale(0.81009)\"><defs><clipPath id=\"tc5\"><path d=\"M8.1,0 L188.1,0 L196.2,12.9 L189.3,24.0 L196.2,35.0 L188.1,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\"/></clipPath><mask id=\"tm5\"><rect x=\"-5\" y=\"-5\" width=\"206.238\" height=\"57.936\" fill=\"#fff\"/><g fill=\"#000\"><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\"/><rect x=\"167.0\" y=\"28.0\" width=\"15\" height=\"14\"/></g></mask></defs><path d=\"M8.1,0 L188.1,0 L196.2,12.9 L189.3,24.0 L196.2,35.0 L188.1,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\" fill=\"#e2be9e\" mask=\"url(#tm5)\"/><rect x=\"17.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"77.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"137.0\" y=\"0.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"47.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"107.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"167.0\" y=\"28.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.62\"/><rect x=\"17.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"77.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"137.0\" y=\"56.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.47\"/><rect x=\"47.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"107.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"167.0\" y=\"84.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.45\"/><rect x=\"17.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"77.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"137.0\" y=\"112.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.42\"/><rect x=\"47.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"107.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"167.0\" y=\"140.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.40\"/><rect x=\"17.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"77.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"137.0\" y=\"168.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.37\"/><rect x=\"47.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"107.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/><rect x=\"167.0\" y=\"196.0\" width=\"15\" height=\"14\" fill=\"#fff\" opacity=\"0.34\"/></g><g class=\"dc\" transform=\"translate(155.49 931.22) scale(0.76737)\"><path d=\"M0.0,11.8 L3.0,13.9 L6.1,16.1 L9.1,18.4 L12.2,20.7 L15.2,23.0 L18.3,25.2 L21.3,27.1 L24.4,28.9 L27.4,30.4 L30.5,31.7 L33.5,32.5 L36.6,33.1 L39.6,33.2 L42.7,33.1 L45.7,32.5 L48.7,31.6 L51.8,30.3 L54.8,28.8 L57.9,27.0 L60.9,25.0 L64.0,22.8 L67.0,20.6 L70.1,18.3 L73.1,16.0 L76.2,13.7 L79.2,11.6 L82.3,9.7 L85.3,8.0 L88.4,6.6 L91.4,5.5 L94.5,4.7 L97.5,4.3 L100.5,4.2 L103.6,4.5 L106.6,5.2 L109.7,6.3 L112.7,7.6 L115.8,9.2 L118.8,11.1 L121.9,13.2 L124.9,15.4 L128.0,17.7 L131.0,20.0 L134.1,22.3 L137.1,24.5 L140.2,26.5 L143.2,28.4 L146.2,30.0 L149.3,31.3 L152.3,32.3 L155.4,32.9 L158.4,33.2 L161.5,33.2 L164.5,32.7 L167.6,31.9 L170.6,30.8 L173.7,29.3 L176.7,27.6 L179.8,25.7\" fill=\"none\" stroke=\"#a286c6\" stroke-width=\"4.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></g></svg>", "L4": "<div class=\"tp\" style=\"left:14.914%;top:5.680%;width:72.295%;height:84.785%\"><video src=\"assets/mc/m4-video.mp4\" poster=\"assets/mc/m4-video-poster.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.089%\" muted loop playsinline preload=\"metadata\" aria-label=\"stop-motion animation for bear me\"></video></div><button class=\"snd\" type=\"button\" aria-label=\"Sound on\" aria-pressed=\"false\" style=\"left:50%;top:95.3%;width:7.5%\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path class=\"spk\" d=\"M4 9.5h3.2L11.5 6v12l-4.3-3.5H4z\"/><path class=\"off\" d=\"M15 9.5l5 5M20 9.5l-5 5\"/><path class=\"on\" d=\"M14.6 9.3a3.8 3.8 0 0 1 0 5.4M17 7a7 7 0 0 1 0 10\"/></svg></button><svg class=\"td\" viewBox=\"0 0 691.6 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(267.01 31.65) scale(0.81189)\"><defs><clipPath id=\"tc6\"><path d=\"M8.1,0 L194.1,0 L202.2,12.9 L195.3,24.0 L202.2,35.0 L194.1,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\"/></clipPath></defs><path d=\"M8.1,0 L194.1,0 L202.2,12.9 L195.3,24.0 L202.2,35.0 L194.1,47.9 L8.1,47.9 L0,35.0 L6.9,24.0 L0,12.9 Z\" fill=\"#c6b6d6\"/><circle cx=\"33.1\" cy=\"26.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"27.1\" cy=\"31.9\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"19.3\" cy=\"29.5\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"17.5\" cy=\"21.6\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"23.5\" cy=\"16.0\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"31.3\" cy=\"18.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"25.3\" cy=\"24.0\" r=\"4.1\" fill=\"#e2bf62\"/><circle cx=\"83.6\" cy=\"26.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"77.6\" cy=\"31.9\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"69.9\" cy=\"29.5\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"68.1\" cy=\"21.6\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"74.0\" cy=\"16.0\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"81.8\" cy=\"18.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"75.8\" cy=\"24.0\" r=\"4.1\" fill=\"#e2bf62\"/><circle cx=\"134.2\" cy=\"26.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"128.2\" cy=\"31.9\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"120.4\" cy=\"29.5\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"118.6\" cy=\"21.6\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"124.6\" cy=\"16.0\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"132.4\" cy=\"18.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"126.4\" cy=\"24.0\" r=\"4.1\" fill=\"#e2bf62\"/><circle cx=\"184.7\" cy=\"26.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"178.8\" cy=\"31.9\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"171.0\" cy=\"29.5\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"169.2\" cy=\"21.6\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"175.1\" cy=\"16.0\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"182.9\" cy=\"18.4\" r=\"5.3\" fill=\"#fffaf2\"/><circle cx=\"177.0\" cy=\"24.0\" r=\"4.1\" fill=\"#e2bf62\"/></g></svg>", "R4": "<div class=\"tp\" style=\"left:21.343%;top:28.916%;width:74.585%;height:68.777%\"><img src=\"assets/mc/m4-swing.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"girl in the bear me t-shirt by the swings\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:6.091%;top:5.193%;width:44.304%;height:44.702%\"><img src=\"assets/mc/m4-hanging.jpg\" style=\"left:-5.611%;top:-12.775%;width:112.725%\" alt=\"pink, white and black t-shirts hanging outside\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 691.6 1000\" aria-hidden=\"true\"><g class=\"dc\" transform=\"translate(530.44 113.20) scale(0.80736)\"><path d=\"M0,-34.5 Q4.5,-4.5 36.0,0 Q4.5,4.5 0,34.5 Q-4.5,4.5 -36.0,0 Q-4.5,-4.5 0,-34.5 Z\" fill=\"#a286c6\" transform=\"translate(36.0,34.5)\"/><circle cx=\"36.0\" cy=\"34.5\" r=\"2.41\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(590.61 89.78) scale(0.80931)\"><path d=\"M0,-15.7 Q2.0,-2.0 16.5,0 Q2.0,2.0 0,15.7 Q-2.0,2.0 -16.5,0 Q-2.0,-2.0 0,-15.7 Z\" fill=\"#d6a24a\" transform=\"translate(16.5,15.7)\"/></g><g class=\"dc\" transform=\"translate(69.99 631.39) scale(0.78172)\"><circle cx=\"28.5\" cy=\"14.6\" r=\"13.7\" fill=\"#e6a68e\"/><circle cx=\"43.1\" cy=\"25.2\" r=\"13.7\" fill=\"#e6a68e\"/><circle cx=\"37.5\" cy=\"42.4\" r=\"13.7\" fill=\"#e6a68e\"/><circle cx=\"19.4\" cy=\"42.4\" r=\"13.7\" fill=\"#e6a68e\"/><circle cx=\"13.8\" cy=\"25.2\" r=\"13.7\" fill=\"#e6a68e\"/><circle cx=\"28.5\" cy=\"30.0\" r=\"9.7\" fill=\"#f4d088\"/></g><g class=\"dc\" transform=\"translate(46.50 713.65) scale(0.77766)\"><g fill=\"none\" stroke=\"#a286c6\" stroke-width=\"4.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M0.8,56.9 L40.4,18.0 L80.7,14.4\"/><path d=\"M61.0,1.2 L80.7,14.4 L61.0,30.0\"/></g></g></svg>", "R1": "<svg class=\"td\" viewBox=\"0 0 691.6 1000\" aria-hidden=\"false\"><text class=\"tx\" style=\"font-size:37.1px\"><tspan x=\"99.8\" y=\"172.2\">bear me, 2021, 2023</tspan><tspan x=\"99.8\" y=\"243.0\">my first merch collection, about</tspan><tspan x=\"99.8\" y=\"282.0\">a childhood that ended too early</tspan><tspan x=\"99.8\" y=\"320.7\">and learning to move on anyway.</tspan><tspan x=\"99.8\" y=\"388.9\">the name plays on the bear in the</tspan><tspan x=\"99.8\" y=\"427.4\">design and on “bear” as in</tspan><tspan x=\"99.8\" y=\"465.7\">“to endure”. Bear me, carry me,</tspan><tspan x=\"99.8\" y=\"503.9\">hold on.</tspan><tspan x=\"99.8\" y=\"568.7\">the collection came in two parts:</tspan><tspan x=\"99.8\" y=\"606.6\">t-shirts with a print and</tspan><tspan x=\"99.8\" y=\"644.4\">an embroidery. Design, photos</tspan><tspan x=\"99.8\" y=\"682.0\">and stop-motion animation</tspan><tspan x=\"99.8\" y=\"719.5\">by me. Sold through my</tspan><tspan x=\"99.8\" y=\"756.9\">Instagram</tspan></text><g class=\"dc\" transform=\"translate(452.82 120.59) scale(0.80724)\"><path d=\"M0,-28.5 Q3.7,-3.7 29.2,0 Q3.7,3.7 0,28.5 Q-3.7,3.7 -29.2,0 Q-3.7,-3.7 0,-28.5 Z\" fill=\"#d6a24a\" transform=\"translate(29.2,28.5)\"/><circle cx=\"29.2\" cy=\"28.5\" r=\"1.99\" fill=\"#fffaf2\"/></g><g class=\"dc\" transform=\"translate(503.21 104.58) scale(0.80866)\"><path d=\"M0,-13.5 Q1.8,-1.8 14.2,0 Q1.8,1.8 0,13.5 Q-1.8,1.8 -14.2,0 Q-1.8,-1.8 0,-13.5 Z\" fill=\"#a286c6\" transform=\"translate(14.2,13.5)\"/></g><g class=\"dc\" transform=\"translate(99.86 178.90) scale(0.80526)\"><path d=\"M0.0,4.5 L6.9,4.7 L13.8,5.0 L20.8,5.4 L27.7,5.8 L34.6,6.0 L41.5,6.1 L48.4,6.0 L55.3,5.7 L62.3,5.3 L69.2,5.0 L76.1,4.6 L83.0,4.4 L89.9,4.4 L96.9,4.6 L103.8,4.9 L110.7,5.3 L117.6,5.6 L124.5,5.9 L131.5,6.1 L138.4,6.0 L145.3,5.8 L152.2,5.5 L159.1,5.1 L166.0,4.8 L173.0,4.5 L179.9,4.4 L186.8,4.5 L193.7,4.7 L200.6,5.1 L207.6,5.5 L214.5,5.8 L221.4,6.0 L228.3,6.1 L235.2,5.9 L242.2,5.7 L249.1,5.3 L256.0,4.9 L262.9,4.6 L269.8,4.4 L276.7,4.4 L283.7,4.6 L290.6,4.9 L297.5,5.3 L304.4,5.7 L311.3,6.0 L318.3,6.1 L325.2,6.0 L332.1,5.8 L339.0,5.4 L345.9,5.0 L352.9,4.7 L359.8,4.5 L366.7,4.4 L373.6,4.5 L380.5,4.8 L387.4,5.2 L394.4,5.6 L401.3,5.9 L408.2,6.1\" fill=\"none\" stroke=\"#a286c6\" stroke-width=\"4.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></g><g class=\"dc\" transform=\"translate(563.63 841.78) scale(0.77137)\"><circle cx=\"27.7\" cy=\"14.2\" r=\"13.3\" fill=\"#c3a7dd\"/><circle cx=\"41.9\" cy=\"24.6\" r=\"13.3\" fill=\"#c3a7dd\"/><circle cx=\"36.5\" cy=\"41.3\" r=\"13.3\" fill=\"#c3a7dd\"/><circle cx=\"18.9\" cy=\"41.3\" r=\"13.3\" fill=\"#c3a7dd\"/><circle cx=\"13.5\" cy=\"24.6\" r=\"13.3\" fill=\"#c3a7dd\"/><circle cx=\"27.7\" cy=\"29.2\" r=\"9.4\" fill=\"#f4d088\"/></g></svg>"},
+art:{"L1": "<div class=\"tp\" style=\"left:4.859%;top:2.251%;width:25.630%;height:17.429%;transform:rotate(-14.10deg)\"><img src=\"assets/ar/a-img-2711.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:60.942%;top:2.171%;width:29.828%;height:20.284%;transform:rotate(18.14deg)\"><img src=\"assets/ar/a-img-2709.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:5.288%;top:61.977%;width:48.744%;height:33.147%;transform:rotate(-9.89deg)\"><img src=\"assets/ar/a-img-2719.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:57.546%;top:57.571%;width:34.936%;height:23.757%;transform:rotate(15.89deg)\"><img src=\"assets/ar/a-img-2704.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:48.838%;top:81.918%;width:27.744%;height:18.867%\"><img src=\"assets/ar/a-img-2706.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 680.03 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"65.6\" y=\"247.1\">stickers for Depressnyachok</tspan><tspan x=\"65.6\" y=\"285.6\">pod Konyachok, 2020</tspan><tspan x=\"65.6\" y=\"365.8\">A sticker pack commissioned by</tspan><tspan x=\"65.6\" y=\"403.9\">Depressnyachok pod</tspan><tspan x=\"65.6\" y=\"441.9\">Konyachok, a podcast about</tspan><tspan x=\"65.6\" y=\"479.2\">mental health. The hosts talk</tspan><tspan x=\"65.6\" y=\"517.6\">openly and with humor about</tspan><tspan x=\"65.6\" y=\"555.2\">depression, anxiety and therapy</tspan></text></svg>", "L2": "<div class=\"tp\" style=\"left:4.287%;top:41.743%;width:59.102%;height:57.022%\"><img src=\"assets/ar/a-img-1338.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"postcard: cat in a red saukele and coat, сен мықтысың\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:36.163%;top:2.848%;width:53.246%;height:51.371%\"><img src=\"assets/ar/a-img-1337.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"postcard: purple cat in a saukele, сенің қолыңнан бәрі келеді\" draggable=\"false\" decoding=\"async\"></div>", "L4": "<div class=\"tp\" style=\"left:8.057%;top:31.693%;width:37.013%;height:23.060%;background:#fff\"><img src=\"assets/ar/a-img-7867.png\" style=\"left:-42.538%;top:-41.214%;width:184.137%\" alt=\"sketch of a winged striped cat\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:50.173%;top:39.010%;width:38.252%;height:28.363%;background:#fff\"><img src=\"assets/ar/a-img-7534.jpg\" style=\"left:9.686%;top:13.011%;width:88.727%\" alt=\"a burst of light wrapped in blue thorns\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:61.996%;top:76.806%;width:29.079%;height:17.885%;background:#fff\"><img src=\"assets/ar/a-img-8939.png\" style=\"left:-22.731%;top:-21.801%;width:144.475%\" alt=\"fluffy creature with a spiked collar\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:4.148%;top:62.281%;width:52.633%;height:35.792%\"><img src=\"assets/ar/a-img-8928.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"cat in a polka-dot suit with a briefcase\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 680.03 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"69.3\" y=\"109.0\">selected works, 2020–present</tspan><tspan x=\"69.3\" y=\"189.8\">A mix of projects from different</tspan><tspan x=\"69.3\" y=\"229.0\">years: illustrations, comics,</tspan><tspan x=\"69.3\" y=\"267.0\">stickers and printed pieces</tspan></text></svg>", "L5": "<div class=\"tp\" style=\"left:7.972%;top:20.670%;width:79.040%;height:53.750%\"><img src=\"assets/ar/a-img-8931.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"line drawing of a figure with a star, on lilac\" draggable=\"false\" decoding=\"async\"></div>", "L6": "<div class=\"tp\" style=\"left:4.713%;top:4.457%;width:66.847%;height:45.458%\"><img src=\"assets/ar/a-img-8937.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"cupid cat with a letter, письмо?\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:24.529%;top:52.937%;width:64.658%;height:43.970%\"><img src=\"assets/ar/a-img-8938.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"letter to Cupid\" draggable=\"false\" decoding=\"async\"></div>", "L7": "<svg class=\"td\" viewBox=\"0 0 680.03 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"91.6\" y=\"393.8\">comics about my cat</tspan><tspan x=\"91.6\" y=\"473.3\">a humorous comic about my cat,</tspan><tspan x=\"91.6\" y=\"511.1\">who I imagine as a very</tspan><tspan x=\"91.6\" y=\"548.8\">important investor.</tspan></text></svg>", "L8": "<div class=\"tp\" style=\"left:7.314%;top:9.513%;width:47.674%;height:32.420%\"><img src=\"assets/ar/a-0-1.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"comic cover: снифф снифф бой\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:44.775%;top:30.041%;width:43.641%;height:29.677%\"><img src=\"assets/ar/a-0-2.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"comic intro page\" draggable=\"false\" decoding=\"async\"></div><svg class=\"td\" viewBox=\"0 0 680.03 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"60.8\" y=\"700.5\">a comic about my cat as a</tspan><tspan x=\"60.8\" y=\"737.6\">superhero, made for the comic</tspan><tspan x=\"60.8\" y=\"774.5\">contest at AlmaCon 2020. The</tspan><tspan x=\"60.8\" y=\"811.4\">festival was cancelled that year.</tspan></text></svg>", "L9": "<div class=\"tp\" style=\"left:4.886%;top:20.827%;width:40.540%;height:27.568%\"><img src=\"assets/ar/a-2-0.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 2: нюх-нюх\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:47.825%;top:20.739%;width:40.713%;height:27.686%\"><img src=\"assets/ar/a-2-1.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 2, page 1\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:28.533%;top:49.840%;width:40.041%;height:27.229%\"><img src=\"assets/ar/a-2-bonus-panel.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 2, bonus panel\" draggable=\"false\" decoding=\"async\"></div>", "R1": "<div class=\"tp\" style=\"left:10.189%;top:6.013%;width:28.257%;height:19.216%\"><img src=\"assets/ar/a-img-2710.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:44.166%;top:3.325%;width:53.354%;height:36.282%;transform:rotate(-22.36deg)\"><img src=\"assets/ar/a-img-2703.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:12.154%;top:32.034%;width:46.786%;height:31.816%\"><img src=\"assets/ar/a-img-2713.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:3.281%;top:66.932%;width:45.174%;height:30.720%\"><img src=\"assets/ar/a-img-2705.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:40.202%;top:56.422%;width:61.733%;height:41.980%;transform:rotate(8.43deg)\"><img src=\"assets/ar/a-img-2712.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:67.499%;top:38.759%;width:32.569%;height:22.148%\"><img src=\"assets/ar/a-img-2718.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sticker for Depressnyachok pod Konyachok\" draggable=\"false\" decoding=\"async\"></div>", "R2": "<svg class=\"td\" viewBox=\"0 0 680.03 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"113.9\" y=\"247.1\">postcards for March 8, 2020</tspan><tspan x=\"113.9\" y=\"327.0\">A series of postcards I illustrated</tspan><tspan x=\"113.9\" y=\"365.2\">and printed for International</tspan><tspan x=\"113.9\" y=\"403.9\">Women’s Day. All proceeds went</tspan><tspan x=\"113.9\" y=\"441.4\">to NeMolchi.kz, a foundation that</tspan><tspan x=\"113.9\" y=\"479.8\">supports survivors of violence</tspan></text></svg>", "R4": "<div class=\"tp\" style=\"left:8.669%;top:2.852%;width:60.262%;height:53.506%\"><img src=\"assets/ar/a-img-8929.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"small pink cat in a crowd of dark figures\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:38.279%;top:58.827%;width:56.527%;height:39.239%\"><img src=\"assets/ar/a-img-8930.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"girl on a broom among clouds\" draggable=\"false\" decoding=\"async\"></div>", "R5": "<div class=\"tp\" style=\"left:10.582%;top:15.084%;width:85.578%;height:73.223%\"><img src=\"assets/ar/a-img-8933.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"girl holding a star\" draggable=\"false\" decoding=\"async\"></div>", "R6": "<div class=\"tp\" style=\"left:15.691%;top:23.173%;width:76.361%;height:51.928%\"><img src=\"assets/ar/a-img-8943.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"you are doing great, a mended heart trophy\" draggable=\"false\" decoding=\"async\"></div>", "R7": "<div class=\"tp\" style=\"left:10.127%;top:2.808%;width:69.281%;height:47.113%\"><img src=\"assets/ar/a-img-8942.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"распорядок дня биржевого касси\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:28.205%;top:51.748%;width:67.116%;height:45.641%\"><img src=\"assets/ar/a-img-8941.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"four-panel comic about the cat's day\" draggable=\"false\" decoding=\"async\"></div>", "R8": "<div class=\"tp\" style=\"left:12.312%;top:20.780%;width:40.652%;height:27.644%\"><img src=\"assets/ar/a-1-0.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 1: снифф-снифф бой!\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:55.366%;top:20.721%;width:40.765%;height:27.721%\"><img src=\"assets/ar/a-1-1.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 1, page 1\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:12.277%;top:51.178%;width:40.052%;height:27.237%\"><img src=\"assets/ar/a-1-2.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 1, page 2\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:56.033%;top:51.204%;width:39.978%;height:27.187%\"><img src=\"assets/ar/a-1-bonus-panel.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 1, bonus panel\" draggable=\"false\" decoding=\"async\"></div>", "R9": "<div class=\"tp\" style=\"left:12.424%;top:20.786%;width:40.619%;height:27.622%\"><img src=\"assets/ar/a-3-0.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 3: секретное оружие\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:55.557%;top:20.720%;width:40.718%;height:27.689%\"><img src=\"assets/ar/a-3-1.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 3, page 1\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:34.953%;top:49.845%;width:40.014%;height:27.211%\"><img src=\"assets/ar/a-3-2.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"chapter 3, page 2\" draggable=\"false\" decoding=\"async\"></div>"},
+concepts:{"L2": "<div class=\"tp\" style=\"left:11.241%;top:8.179%;width:53.509%;height:37.062%\"><img src=\"assets/co/c2-tee-wolves.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"black t-shirt with running wolves\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:67.712%;top:26.795%;width:24.279%;height:22.335%\"><img src=\"assets/co/c2-ref-tracksuit.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"reference: blue Kazakhstan tracksuit\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:8.989%;top:69.488%;width:18.469%;height:20.266%\"><img src=\"assets/co/c2-ref-hoodie.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"reference: black zip hoodie\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:32.664%;top:52.062%;width:59.317%;height:41.085%\"><img src=\"assets/co/c2-tee-cub.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"black t-shirt with a wolf cub print\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:4.052%;top:46.707%;width:45.210%;height:10.414%\"><img src=\"assets/co/c2-kazakhstan.jpg\" style=\"left:0.188%;top:-31.043%;width:99.960%\" alt=\"Kazakhstan in blackletter\" draggable=\"false\" decoding=\"async\"></div>", "R2": "<div class=\"tp\" style=\"left:9.385%;top:8.568%;width:88.470%;height:86.358%\"><img src=\"assets/co/c2-sketches.png\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"sketches for the collection: tees, tracksuits, a cap\" draggable=\"false\" decoding=\"async\"></div>", "L3": "<div class=\"tp\" style=\"left:5.033%;top:4.449%;width:68.832%;height:63.319%\"><img src=\"assets/co/c3-test-print.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"the first t-shirt samples on a table\" draggable=\"false\" decoding=\"async\"></div><div class=\"tp\" style=\"left:29.551%;top:53.148%;width:67.229%;height:48.546%\"><img src=\"assets/co/c3-sofa.jpg\" style=\"left:-0.000%;top:-27.393%;width:100.000%\" alt=\"two friends in böltirik t-shirts on a pink-lit sofa\" draggable=\"false\" decoding=\"async\"></div>", "R3": "<div class=\"tp\" style=\"left:5.393%;top:8.491%;width:89.974%;height:82.768%\"><img src=\"assets/co/c3-wine.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"two friends in böltirik t-shirts with wine\" draggable=\"false\" decoding=\"async\"></div>", "L1": "<div class=\"tp\" style=\"left:-11.773%;top:19.941%;width:123.080%;height:63.621%;transform:rotate(-90.00deg)\"><img src=\"assets/co/c1-wolf-2.jpg\" style=\"left:-0.000%;top:-0.000%;width:100.000%\" alt=\"böltirik: a wolf in black and white with the name in blackletter\" draggable=\"false\" decoding=\"async\"></div>", "R1": "<svg class=\"td\" viewBox=\"0 0 689.93 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"65.2\" y=\"183.0\">böltirik</tspan><tspan x=\"65.2\" y=\"275.7\">an ongoing concept project about</tspan><tspan x=\"65.2\" y=\"321.8\">the cultural code of Kazakhstan,</tspan><tspan x=\"65.2\" y=\"367.7\">reimagined in a dark alternative</tspan><tspan x=\"65.2\" y=\"413.4\">version.</tspan><tspan x=\"65.2\" y=\"504.4\">böltirik means “wolf cub”. The wolf is</tspan><tspan x=\"65.2\" y=\"549.7\">a key symbol in how Kazakh men</tspan><tspan x=\"65.2\" y=\"594.7\">are raised, and this project rethinks</tspan><tspan x=\"65.2\" y=\"639.6\">that image.</tspan><tspan x=\"65.2\" y=\"728.9\">sketches, a test print and photos. I</tspan><tspan x=\"65.2\" y=\"773.3\">sewed and screen printed the t-</tspan><tspan x=\"65.2\" y=\"817.6\">shirt myself, as a first step toward a</tspan><tspan x=\"65.2\" y=\"861.7\">small capsule collection.</tspan></text></svg>"}};
+function fillPages(i){
+  const back=coverBack.querySelector('.sheet'), base=book.querySelector('.block .sheet.base');
+  [back,base].forEach(sh=>sh.querySelectorAll('.tt').forEach(e=>e.remove()));
+  let P=BOOK_PAGES[NB[i].key]; if(!P) return;
+  if(NB[i].key==='art') P=Object.assign({},P,MOB?ART_INV.m:ART_INV.d);
+  const put=(sheet,html)=>{ if(!html||!sheet) return; const d=document.createElement('div'); d.className='tt'; d.innerHTML=html; sheet.appendChild(d); };
+  const right=s=>s<=LEAVES?leaves[s-1].querySelector('.face.front .sheet'):base;
+  const left=s=>s===1?back:leaves[s-2].querySelector('.face.back .sheet');
+  for(let s=1;s<=LEAVES+1;s++){ put(left(s),P['L'+s]); put(right(s),P['R'+s]); }
+  invWire();
+}
+function syncMedia(){
+  // which spread is on screen: on the phone it's the one whose page is showing
+  const vis=state==='open'||state==='busy'?(MOB?Math.floor(page/2):spread):-1;
+  book.querySelectorAll('.tt video').forEach(v=>{
+    const leaf=v.closest('.leaf'), onBack=!!v.closest('.face.back'), onCover=!!v.closest('.cover');
+    let s=onCover?0:leaf?leaves.indexOf(leaf)+(onBack?1:0):LEAVES;
+    const isLeft=onCover||onBack, sideOk=!MOB||(page%2===0)===isLeft;   // phone: only the page that's showing
+    if(s===vis&&sideOk&&reader.classList.contains('active')){ const p=v.play(); p&&p.catch(()=>{}); } else v.pause();
+  });
+}
+// the sound button switches the video on its page between muted and with sound
+book.addEventListener('click',e=>{
+  const b=e.target.closest('.tt .snd'); if(!b) return;
+  e.stopPropagation();
+  const v=b.closest('.tt').querySelector('video'); if(!v) return;
+  v.muted=!v.muted; if(!v.muted){ const p=v.play(); p&&p.catch(()=>{}); }
+  b.classList.toggle('is-on',!v.muted); b.setAttribute('aria-pressed',String(!v.muted)); b.setAttribute('aria-label',v.muted?'Sound on':'Sound off');
+});
+
+// ---------- art, spread 3: the wedding invitation lies across the spread from the start ----------
+// the left half is the video itself, the right half a canvas copying its frames, so it turns with the pages like paper
+const ART_INV={d:{"L3": "<div class=\"tp invh\" style=\"left:4.713%;top:26.394%;width:191.629%;height:66.921%\"><video class=\"inv-video\" src=\"assets/ar/inv.mp4\" poster=\"assets/ar/inv-poster.jpg\" muted loop playsinline preload=\"metadata\" aria-label=\"wedding invitation animation\" style=\"left:0;top:0;width:100%;height:100%;object-fit:cover\"></video></div><svg class=\"td\" viewBox=\"0 0 680.03 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"66.7\" y=\"135.0\">wedding invitation, 2024</tspan></text></svg>", "R3": "<div class=\"tp invh\" style=\"left:-95.287%;top:26.394%;width:191.629%;height:66.921%\"><canvas class=\"inv-canvas\" width=\"1920\" height=\"986\" style=\"position:absolute;left:0;top:0;width:100%;height:100%;display:block\"></canvas></div><svg class=\"td\" viewBox=\"0 0 680.03 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"93.5\" y=\"89.6\">a 2D animation commissioned</tspan><tspan x=\"93.5\" y=\"128.9\">as a wedding invitation. I drew</tspan><tspan x=\"93.5\" y=\"168.0\">everything, animated it in</tspan><tspan x=\"93.5\" y=\"206.1\">Procreate and made the sound</tspan></text></svg>"}, m:{"L3": "<div class=\"tp invh\" style=\"left:3.000%;top:27.000%;width:94.000%;height:32.827%\"><video class=\"inv-video\" src=\"assets/ar/inv-m.mp4\" poster=\"assets/ar/inv-poster.jpg\" muted loop playsinline preload=\"metadata\" aria-label=\"wedding invitation animation\" style=\"left:0;top:0;width:100%;height:100%;object-fit:cover\"></video></div><svg class=\"td\" viewBox=\"0 0 680.03 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"66.7\" y=\"135.0\">wedding invitation, 2024</tspan></text></svg><button class=\"snd\" type=\"button\" aria-label=\"Sound on\" aria-pressed=\"false\" style=\"left:50%;top:65.83%;width:7.5%\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path class=\"spk\" d=\"M4 9.5h3.2L11.5 6v12l-4.3-3.5H4z\"/><path class=\"off\" d=\"M15 9.5l5 5M20 9.5l-5 5\"/><path class=\"on\" d=\"M14.6 9.3a3.8 3.8 0 0 1 0 5.4M17 7a7 7 0 0 1 0 10\"/></svg></button>", "R3": "<svg class=\"td\" viewBox=\"0 0 680.03 1000\"><text class=\"tx\" style=\"font-size:36.9px\"><tspan x=\"93.5\" y=\"89.6\">a 2D animation commissioned</tspan><tspan x=\"93.5\" y=\"128.9\">as a wedding invitation. I drew</tspan><tspan x=\"93.5\" y=\"168.0\">everything, animated it in</tspan><tspan x=\"93.5\" y=\"206.1\">Procreate and made the sound</tspan></text></svg>"}}, INV_BAND=[0.26394,0.93315];
+function invWire(){
+  const v=book.querySelector('video.inv-video'), c=book.querySelector('canvas.inv-canvas'); if(!v||!c) return;
+  const ctx=c.getContext('2d'), draw=()=>{ if(v.readyState>=2) ctx.drawImage(v,0,0,c.width,c.height); };
+  const poster=new Image(); poster.onload=()=>{ if(v.readyState<2) ctx.drawImage(poster,0,0,c.width,c.height); }; poster.src='assets/ar/inv-poster.jpg';
+  if('requestVideoFrameCallback' in v){ const f=()=>{ draw(); if(v.isConnected) v.requestVideoFrameCallback(f); }; v.requestVideoFrameCallback(f); }
+  else { const f=()=>{ if(!v.paused) draw(); if(v.isConnected) requestAnimationFrame(f); }; requestAnimationFrame(f); }
+  v.addEventListener('loadeddata',draw); v.addEventListener('seeked',draw);
+}
+// the sound button sits at the bottom, over the spine (computer only; on a phone it is on the page under the video)
+const invB=document.createElement('div'); invB.className='tt invb';
+invB.innerHTML='<button class="snd" type="button" aria-label="Sound on" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="spk" d="M4 9.5h3.2L11.5 6v12l-4.3-3.5H4z"/><path class="off" d="M15 9.5l5 5M20 9.5l-5 5"/><path class="on" d="M14.6 9.3a3.8 3.8 0 0 1 0 5.4M17 7a7 7 0 0 1 0 10"/></svg></button>';
+book.querySelector('.block').appendChild(invB);
+const invBtn=invB.querySelector('.snd');
+invBtn.addEventListener('click',e=>{
+  e.stopPropagation(); const v=book.querySelector('video.inv-video'); if(!v) return;
+  v.muted=!v.muted; if(!v.muted){ const p=v.play(); p&&p.catch(()=>{}); }
+  invBtn.classList.toggle('is-on',!v.muted); invBtn.setAttribute('aria-pressed',String(!v.muted)); invBtn.setAttribute('aria-label',v.muted?'Sound on':'Sound off');
+});
+function invUpdate(off){
+  const on=!off&&!MOB&&state!=='closed'&&NB[cur]&&NB[cur].key==='art'&&spread===2;
+  invB.classList.toggle('on',on);
+  if(on){
+    const bl=book.querySelector('.block'), bw=bl.offsetWidth, bh=bl.offsetHeight, btn=Math.max(34,bw*.075);
+    Object.assign(invBtn.style,{left:'50%',top:`calc(${(INV_BAND[1]*100).toFixed(3)}% + ${(btn*.78).toFixed(1)}px)`,width:btn.toFixed(1)+'px'});
+    const y0=bl.offsetTop+INV_BAND[0]*bh-2, y1=bl.offsetTop+INV_BAND[1]*bh+2;   // the coils pass under the invitation
+    const m=`linear-gradient(#000 ${y0}px,transparent ${y0}px,transparent ${y1}px,#000 ${y1}px)`;
+    rings.style.webkitMaskImage=m; rings.style.maskImage=m;
+  } else { rings.style.webkitMaskImage=''; rings.style.maskImage=''; }
+}
+function turn(dir){
+  if(dir>0&&state==='open'&&pNext.disabled){ const nx=nextAfter(cur); if(nx!==null) go(nx); return; }   // past the last page: the next notebook
+  turnNow(dir);
+}
+function updatePager(){
+  pager.querySelector('.lbl').textContent=NB[cur].key;
+  const n=MOB?page+1:spread+1, of=MOB?(LEAVES+1)*2:LEAVES+1;
+  pager.querySelector('.num').textContent=String(n).padStart(2,'0')+' / '+String(of).padStart(2,'0');
+  pPrev.disabled=n===1; pNext.disabled=n===of; syncMedia();
+  const nx=nextAfter(cur), nm=nx===null?'':(nx==='frame'?'cv':NB[nx].key);
+  nextNb.classList.toggle('on',n===of&&nx!==null);
+  nextNb.querySelector('button').setAttribute('aria-label','Open '+nm); nextNb.querySelector('.nnl').textContent=nm; invUpdate();
+}
+function moveTo(X,dur){
+  const from=curX; curX=X; if(from===X) return;
+  const a=book.animate([{transform:T(from,geo.cy,1,TILT)},{transform:T(X,geo.cy,1,TILT)}],{duration:dur,easing:'cubic-bezier(.36,.08,.24,1)',fill:'forwards'});
+  a.finished.then(()=>{ if(curX===X){ book.style.transform=T(X,geo.cy,1,TILT); book.getAnimations().forEach(x=>x.cancel()); } }).catch(()=>{});
+}
+
+async function openBook(i){
+  if(state!=='closed') return; state='busy'; busy=true; openKind='book'; cur=i; spread=0; page=0;
+  LEAVES=BOOK_LEAVES[NB[i].key]??12;
+  MOB=isMob(); TILT=MOB?4:9;
+  const nb=NB[i], g=geo=geometry(i);
+  markNav(i); setHash(nb.key);
+  Object.assign(book.style,{width:g.W+'px',height:g.H+'px'});
+  book.style.setProperty('--d',g.d+'px'); book.style.setProperty('--it',nb.it+'%'); book.style.setProperty('--ir',nb.ir+'%');
+  // page size, then a grid that fits a whole number of cells, centred on the page
+  const bw=g.W*(1-nb.ir/100), bh=g.H*(1-2*nb.it/100);
+  const cell=Math.max(6,Math.round(bw/(i===1?19:26))), fw=bw*(i===1?.86:.94), fh=bh*(i===1?.885:.95);
+  const nx=Math.floor(fw/cell), ny=Math.floor(fh/cell), pw=nx*cell+(i===1?1:0), ph=ny*cell+(i===1?1:0);
+  book.style.setProperty('--g',cell+'px');
+  book.style.setProperty('--pw',pw+'px'); book.style.setProperty('--ph',ph+'px');
+  book.style.setProperty('--pl',Math.round((bw-pw)/2)+'px'); book.style.setProperty('--pt',Math.round((bh-ph)/2)+'px');
+  book.style.setProperty('--l',(g.W/19).toFixed(2)+'px');
+  book.className='book p'+i+(nb.spiral?' spiral':'')+(nb.spikes?' spiked':'')+(nb.strap?' strapped':'');
+  book.style.setProperty('--lw',g.W+'px');
+  const [la,ta,ra,ba]=nb.clab; coverLab.textContent=nb.key;
+  Object.assign(coverLab.style,{left:la+'%',top:ta+'%',width:(ra-la)+'%',height:(ba-ta)+'%'});
+  [spikesEl,strapEl].forEach(e=>e.getAnimations().forEach(a=>a.cancel()));
+  spikesEl.style.transform=spT(0);
+  if(nb.spiral) drawCoils(g,nb,bw,bh);
+  if(nb.strap){ const s=nb.strap; strapImg.src=`assets/cs_strap${i}.webp`; strapBack.src=`assets/cs_strapback${i}.webp`;
+    Object.assign(strapEl.style,{left:s.l+'%',top:s.t+'%',width:s.w+'%',height:s.h+'%',transform:stT(0),
+      transformOrigin:`${((100-s.l)/s.w*100).toFixed(2)}% 50%`}); }   // hinge on the fore-edge of the book
+  const c=nb.cover; frontImg.src=`assets/cs_cover${i}.webp`;
+  Object.assign(frontImg.style,{left:c.l+'%',top:c.t+'%',width:c.w+'%',height:c.h+'%'});
+  const fur='url(assets/cs_fur.jpg)';
+  backcover.style.background=nb.inner==='fur'?`${fur} center/cover, ${nb.color}`:nb.color;
+  coverBack.style.background=nb.inner==='fur'?`linear-gradient(rgba(0,0,0,.08),rgba(0,0,0,.08)), ${fur} center/cover`:nb.inner;
+  buildLeaves(); fillPages(i);
+  [gutter,rings].forEach(e=>{e.getAnimations().forEach(a=>a.cancel()); e.style.opacity=0});
+  const spc=book.querySelector('.spc'); spc.getAnimations().forEach(a=>a.cancel()); spc.style.opacity=1;   // the photo's coils, exactly as on the shelf
+  coverEl.style.transform=`translateZ(${ZC()}px) rotateY(0deg)`;
+  book.style.transform=T(g.cx0,g.cy0,g.s0);
+  await Promise.all([frontImg,nb.strap?strapImg:null,nb.strap?strapBack:null].filter(Boolean).map(im=>im.decode().catch(()=>{})));
+  book.classList.add('on'); nb.el.classList.add('taken'); nb.el.classList.remove('hot'); nb.el.blur(); nb.rf.classList.add('gone');
+  reader.classList.add('active'); reader.setAttribute('aria-hidden','false'); document.body.classList.add('reading');
+
+  // 1) slide it out of the row, lift it and turn it toward you
+  const midx=(g.cx0+g.cx)/2, midy=Math.min(g.cy0,g.cy)-g.H*.06;
+  await wait(book.animate([
+    {transform:T(g.cx0,g.cy0,g.s0)},
+    {transform:T(g.cx0,g.cy0-g.H*g.s0*.12,g.s0*1.03,-14,0,0),offset:.2},
+    {transform:T(midx,midy,(g.s0+1)/2*1.06,-4,-22,-5),offset:.6},
+    {transform:T(g.cx,g.cy,1,TILT*.6,-6,-1.5),offset:.88},
+    {transform:T(g.cx,g.cy,1,TILT,0,0)}
+  ],{duration:1600,easing:ease,fill:'forwards'}));
+
+  // 2) the strap unsnaps first: a small pop off the stud, then it swings out to the side
+  if(nb.strap){
+    await wait(strapEl.animate([
+      {transform:stT(0)},
+      {transform:stT(-6,5),offset:.16},
+      {transform:stT(-2,7),offset:.26},
+      {transform:stT(95,10),offset:.6},
+      {transform:stU(180)}
+    ],{duration:900,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'}));
+  }
+  // 3) open the cover; the book slides so the spread is centred
+  const dur=1350;
+  if(nb.spikes) spikesEl.animate([{transform:spT(0)},{transform:spT(90)}],{duration:dur,easing:ease,fill:'forwards'});
+  curX=MOB?g.cx+g.W:g.cx+g.W/2;   // phone: start on the first left-hand page
+  book.animate([{transform:T(g.cx,g.cy,1,TILT)},{transform:T(curX,g.cy,1,TILT)}],{duration:dur,easing:ease,fill:'forwards'});
+  shade.animate([{opacity:0},{opacity:.42,offset:.45},{opacity:0}],{duration:dur,easing:ease});
+  fadeIn(gutter,400,dur*.55);
+  if(nb.spiral){   // as the cover lifts, the coils seen from the side become the coils seen from above
+    book.querySelector('.spc').animate([{opacity:1},{opacity:1,offset:.25},{opacity:0,offset:.55},{opacity:0}],{duration:dur,easing:'linear',fill:'forwards'});
+    rings.animate([{opacity:0},{opacity:0,offset:.3},{opacity:1,offset:.6},{opacity:1}],{duration:dur,easing:'linear',fill:'forwards'});
+  }
+  await wait(coverEl.animate([
+    {transform:`translateZ(${ZC()}px) rotateY(0deg)`},
+    {transform:`translateZ(${ZTOP()}px) rotateY(-92deg)`,offset:.5},
+    {transform:'translateZ(.3px) rotateY(-180deg)'}
+  ],{duration:dur,easing:ease,fill:'forwards'}));
+  updatePager(); reader.classList.add('ready'); state='open'; busy=false;
+}
+
+function flip(i,dir,dur=950){
+  const lf=leaves[i], from=dir>0?0:-180, to=dir>0?-180:0;
+  const z0=dir>0?ZU(i):ZF(i), z1=dir>0?ZF(i):ZU(i);
+  const [fs,bs]=lf.querySelectorAll('.fshade');
+  const a=lf.animate([
+    {transform:`translateZ(${z0}px) rotateY(${from}deg)`},
+    {transform:`translateZ(${ZTOP()+i*.5}px) rotateY(${(from+to)/2}deg)`,offset:.5},
+    {transform:`translateZ(${z1}px) rotateY(${to}deg)`}
+  ],{duration:dur,easing:'cubic-bezier(.36,.08,.24,1)',fill:'forwards'});
+  const lightFirst=dir>0?fs:bs, lightSecond=dir>0?bs:fs;
+  lightFirst.animate([{opacity:0},{opacity:.85,offset:.5},{opacity:.85}],{duration:dur*.5,easing:'ease-in'});
+  lightSecond.animate([{opacity:.85},{opacity:0}],{duration:dur*.5,delay:dur*.5,easing:'ease-out',fill:'backwards'});
+  a.finished.then(()=>{ lf.style.transform=`translateZ(${z1}px) rotateY(${to}deg)`; a.cancel(); });
+  return a.finished;
+}
+function turnNow(dir){
+  if(state!=='open') return;
+  if(MOB){
+    // pages in reading order: left of spread 0, right of spread 0, left of spread 1, right of spread 1, …
+    const g=geo, last=LEAVES*2+1;
+    if(dir>0){
+      if(page>=last) return;
+      if(page%2===1){ flip(spread,1); spread++; moveTo(g.cx+g.W,950); } else moveTo(g.cx,650);
+      page++;
+    }else{
+      if(page<=0) return;
+      if(page%2===0){ spread--; flip(spread,-1); moveTo(g.cx,950); } else moveTo(g.cx+g.W,650);
+      page--;
+    }
+  }else{
+    if(dir>0&&spread<LEAVES){ flip(spread,1); spread++; }
+    else if(dir<0&&spread>0){ spread--; flip(spread,-1); }
+    else return;
+  }
+  updatePager();
+}
+
+async function closeBook(){
+  if(state!=='open') return; invUpdate(true); state='busy'; busy=true;
+  const nb=NB[cur], g=geo;
+  reader.classList.remove('ready'); book.querySelectorAll('.tt video').forEach(v=>v.pause());
+  if(spread>0){
+    const ps=[]; for(let i=spread-1,k=0;i>=0;i--,k++) ps.push(new Promise(r=>setTimeout(()=>flip(i,-1,700).then(r),k*55)));
+    await Promise.all(ps); spread=0; page=0;
+  }
+  const dur=1150;
+  gutter.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'});
+  if(nb.spiral){
+    rings.animate([{opacity:1},{opacity:1,offset:.4},{opacity:0,offset:.7},{opacity:0}],{duration:dur,easing:'linear',fill:'forwards'});
+    book.querySelector('.spc').animate([{opacity:0},{opacity:0,offset:.45},{opacity:1,offset:.75},{opacity:1}],{duration:dur,easing:'linear',fill:'forwards'});
+  }
+  book.getAnimations().forEach(a=>a.cancel());
+  book.animate([{transform:T(curX,g.cy,1,TILT)},{transform:T(g.cx,g.cy,1,TILT)}],{duration:dur,easing:ease,fill:'forwards'}); curX=g.cx;
+  shade.animate([{opacity:0},{opacity:.42,offset:.55},{opacity:0}],{duration:dur,easing:ease});
+  if(nb.spikes) spikesEl.animate([{transform:spT(90)},{transform:spT(0)}],{duration:dur,easing:ease,fill:'forwards'});
+  await wait(coverEl.animate([
+    {transform:'translateZ(.3px) rotateY(-180deg)'},
+    {transform:`translateZ(${ZTOP()}px) rotateY(-88deg)`,offset:.5},
+    {transform:`translateZ(${ZC()}px) rotateY(0deg)`}
+  ],{duration:dur,easing:ease,fill:'forwards'}));
+  // the strap folds back over and snaps onto its stud
+  if(nb.strap){
+    await wait(strapEl.animate([
+      {transform:stU(180)},
+      {transform:stT(90,10),offset:.45},
+      {transform:stT(-3,4),offset:.82},
+      {transform:stT(0)}
+    ],{duration:800,easing:'cubic-bezier(.4,0,.2,1)',fill:'forwards'}));
+  }
+  reader.classList.remove('active'); document.body.classList.remove('reading'); markNav(null); setHash('');
+  const midx=(g.cx0+g.cx)/2, midy=Math.min(g.cy0,g.cy)-g.H*.06;
+  const back=book.animate([
+    {transform:T(g.cx,g.cy,1,TILT)},
+    {transform:T(midx,midy,(g.s0+1)/2*1.06,-4,-22,-5),offset:.4},
+    {transform:T(g.cx0,g.cy0-g.H*g.s0*.12,g.s0*1.03,-14,0,0),offset:.8},
+    {transform:T(g.cx0,g.cy0,g.s0)}
+  ],{duration:1350,easing:ease,fill:'forwards'});
+  setTimeout(()=>nb.rf.classList.remove('gone'),900);
+  await wait(back);
+  nb.el.classList.remove('taken');
+  [book,coverEl,spikesEl,strapEl,rings,book.querySelector('.spc')].forEach(e=>e.getAnimations().forEach(a=>a.cancel())); rings.style.opacity=0;
+  book.classList.remove('on'); reader.setAttribute('aria-hidden','true');
+  state='closed'; busy=false; openKind=null; cur=-1;
+}
+
+document.getElementById('close').addEventListener('click',e=>{e.stopPropagation();closeBook()});
+pPrev.addEventListener('click',e=>{e.stopPropagation();turn(-1)});
+pNext.addEventListener('click',e=>{e.stopPropagation();turn(1)});
+// on the spread: right half turns forward, left half turns back; outside it puts the notebook away
+function onSpread(e){
+  if(state!=='open') return null;
+  if(MOB) return e.clientX>=innerWidth/2?1:-1;
+  const g=geo, x=e.clientX-g.cx, y=e.clientY-g.cy;
+  if(Math.abs(y)>g.H/2+10||Math.abs(x)>(MOB?g.W/2:g.W)+10) return null;
+  return x>=0?1:-1;
+}
+document.getElementById('dim').addEventListener('click',()=>{ if(!MOB) closeBook(); });
+reader.addEventListener('click',e=>{
+  if(e.target.closest('#pager,#close')) return;
+  const side=onSpread(e); if(side===null){ if(!MOB&&e.target!==document.getElementById('dim')) closeBook(); return; }
+  turn(side);
+});
+reader.addEventListener('pointermove',e=>{
+  const side=onSpread(e);
+  reader.style.cursor=side===null?'default':(side>0?(pNext.disabled&&nextAfter(cur)===null?'default':'e-resize'):(pPrev.disabled?'default':'w-resize'));
+});
+let tx0=null, ty0=null, swiped=false;
+reader.addEventListener('touchstart',e=>{tx0=e.touches[0].clientX; ty0=e.touches[0].clientY; swiped=false},{passive:true});
+reader.addEventListener('touchend',e=>{ if(tx0===null) return; const dx=e.changedTouches[0].clientX-tx0, dy=e.changedTouches[0].clientY-ty0; tx0=null;
+  if(Math.abs(dx)>40&&Math.abs(dx)>Math.abs(dy)){ swiped=true; turn(dx<0?1:-1); setTimeout(()=>swiped=false,400); } });
+reader.addEventListener('click',e=>{ if(swiped){ e.stopImmediatePropagation(); } },true);
+addEventListener('resize',()=>{ if(state==='open') invUpdate(); if(state==='open'){ const n=geometry(cur); geo.cx=n.cx; geo.cy=n.cy;
+  curX=MOB?(page%2?geo.cx:geo.cx+geo.W):geo.cx+geo.W/2;
+  book.getAnimations().forEach(a=>a.cancel()); book.style.transform=T(curX,geo.cy,1,TILT);} });
+
+/* ===================== the frame: it comes closer, the room stays ===================== */
+const fview=document.getElementById('frameView'), fz=fview.querySelector('.fz'), fsrc=fview.querySelector('.fsrc'), fx=fview.querySelector('.x');
+// the outline of the frame as it leans on the shelf, in % of its box: the close-up frame starts inside exactly this shape
+const QUAD='polygon(12.7% 6.5%, 98.7% 0.5%, 91.2% 99.3%, 0.9% 91.8%)', RECT='polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)';
+const A4=Math.SQRT2;                                  // portrait A4: height = width × √2
+function frameTarget(){
+  const mob=isMob(), H=Math.min(innerHeight*(mob?.7:.8),innerWidth*(mob?.86:.82)*A4), W=H/A4;
+  return {x:(innerWidth-W)/2,y:(innerHeight-H)/2+(mob?16:6),W,H};
+}
+function frameStart(t){
+  const r=frameEl.getBoundingClientRect();
+  return `translate(${r.left}px,${r.top}px) scale(${r.width/t.W},${r.height/t.H})`;
+}
+function sizeFrame(t){
+  for(const el of [fz,fsrc]) Object.assign(el.style,{width:t.W+'px',height:t.H+'px'});
+  fz.style.setProperty('--fb',Math.round(t.W*.072)+'px');
+}
+async function openFrame(){
+  busy=true; openKind='frame'; markNav('frame'); setHash('cv'); frameEl.classList.remove('hot');
+  const t=frameTarget(); sizeFrame(t);
+  const start=frameStart(t), mid=`translate(${t.x}px,${t.y-16}px) scale(1,1)`, end=`translate(${t.x}px,${t.y}px) scale(1,1)`;
+  fview.classList.add('on'); fview.setAttribute('aria-hidden','false'); fview.offsetWidth; fview.classList.add('open');
+  frameEl.style.visibility='hidden';                  // it has left the shelf
+  const opt={duration:1300,easing:'cubic-bezier(.5,.02,.2,1)',fill:'forwards'};
+  fsrc.animate([{transform:start,opacity:1},{opacity:1,offset:.42},{opacity:0,offset:.5},{transform:mid,offset:.8},{transform:end,opacity:0}],opt);
+  await wait(fz.animate([{transform:start,opacity:0,clipPath:QUAD},{opacity:0,offset:.12},{opacity:1,offset:.4},{clipPath:RECT,offset:.62},{transform:mid,offset:.8},{transform:end,opacity:1,clipPath:RECT}],opt));
+  fview.classList.add('ready'); busy=false;
+}
+async function closeFrame(){
+  if(openKind!=='frame'||busy) return; busy=true;
+  const t=frameTarget(), start=frameStart(t), end=`translate(${t.x}px,${t.y}px) scale(1,1)`;
+  fview.classList.remove('ready','open');
+  const opt={duration:1100,easing:'cubic-bezier(.5,.02,.3,1)',fill:'forwards'};
+  fsrc.animate([{transform:end,opacity:0},{opacity:0,offset:.45},{opacity:1,offset:.52},{transform:start,opacity:1}],opt);
+  await wait(fz.animate([{transform:end,opacity:1,clipPath:RECT},{clipPath:RECT,offset:.35},{opacity:1,offset:.5},{opacity:0,offset:.82},{transform:start,opacity:0,clipPath:QUAD}],opt));
+  frameEl.style.visibility='';
+  fview.classList.remove('on'); fview.setAttribute('aria-hidden','true'); [fz,fsrc].forEach(e=>e.getAnimations().forEach(a=>a.cancel()));
+  markNav(null); setHash(''); busy=false; openKind=null; fz.querySelector('.cv').scrollTop=0;
+}
+fx.addEventListener('click',e=>{e.stopPropagation();closeFrame()});
+fview.addEventListener('click',e=>{ if(!e.target.closest('.content')) closeFrame(); });
+addEventListener('resize',()=>{ if(openKind==='frame'&&!busy){ const t=frameTarget(); fz.getAnimations().forEach(a=>a.cancel());
+  sizeFrame(t); fz.style.transform=`translate(${t.x}px,${t.y}px)`; fz.style.opacity=1; } });
+
+addEventListener('keydown',e=>{
+  if(e.key==='Escape'){ if(openKind==='book') closeBook(); else if(openKind==='frame') closeFrame(); }
+  if(openKind==='book'&&(e.key==='ArrowRight'||e.key==='ArrowLeft')){ e.preventDefault(); turn(e.key==='ArrowRight'?1:-1); }
+});
+
+/* ===================== smooth noise ===================== */
+function Noise(seed){ const p=[]; let s=seed*9301+49297; for(let i=0;i<256;i++){ s=(s*9301+49297)%233280; p.push(s/233280*2-1);}
+  return t=>{ const i=Math.floor(t), f=t-i, u=f*f*(3-2*f); return p[i&255]*(1-u)+p[(i+1)&255]*u; }; }
+
+/* ===================== cat tail: a slow, calm sway with the odd lazy flick ===================== */
+const tctx=tailEl.getContext('2d'), tailImg=new Image(); tailImg.src='assets/cs_tail.png';
+const DPR=Math.min(2,devicePixelRatio||1);
+tailEl.width=(TAIL.w+TAIL.pad*2)*DPR; tailEl.height=TAIL.h*DPR;
+Object.assign(tailEl.style,{left:(TAIL.x-TAIL.pad)+'px',top:TAIL.y+'px',width:(TAIL.w+TAIL.pad*2)+'px',height:TAIL.h+'px'});
+const tN=Noise(77), tN2=Noise(23);
+let flickAt=4+Math.random()*5, flickDir=1;
+function tailTick(t){
+  if(!tailImg.complete||!tailImg.naturalWidth) return;
+  const w=TAIL.w, h=TAIL.h, piv=TAIL.board-TAIL.y, L=h-piv;
+  if(t>flickAt+2.4){ flickAt=t+4+Math.random()*5; flickDir=Math.random()<.5?-1:1; }
+  const ft=t-flickAt, flick=ft>0?Math.exp(-ft/.75)*Math.sin(ft*2*Math.PI/1.15)*flickDir:0;
+  const sway=.66*Math.sin(t*2*Math.PI/6.4)+.26*Math.sin(t*2*Math.PI/3.9+1.3)+.3*tN(t*.25);
+  tctx.setTransform(DPR,0,0,DPR,0,0); tctx.clearRect(0,0,w+TAIL.pad*2,h);
+  for(let y=0;y<h;y++){
+    const u=Math.max(0,(y-piv)/L);
+    const dx=18*sway*Math.pow(u,1.3)
+            +4.2*Math.sin(t*2*Math.PI/2.8-u*3.0)*u*u*(.6+.4*tN2(t*.3))
+            +12*flick*Math.pow(u,2.1);
+    tctx.drawImage(tailImg,0,y,w,1,TAIL.pad+dx,y,w,1.6);
+  }
+}
+
+/* ===================== rain: only behind the glass, plus drops on its outer side ===================== */
+const scene=new Image(); scene.src='assets/cs_scene.jpg';
+const rnd=(a,b)=>a+Math.random()*(b-a);
+function Rain(win){
+  const [x0,y0,x1,y1]=WIN[win.dataset.k], W=x1-x0, H=y1-y0;
+  Object.assign(win.style,{left:x0+'px',top:y0+'px',width:W+'px',height:H+'px'});
+  const mask=new Image(); mask.src=`assets/cs_glass${win.dataset.k}.png`;
+  const sc=win.querySelector('.streaks'), gc=win.querySelector('.glass');
+  for(const c of [sc,gc]){ c.width=W; c.height=H; }
+  const sx=sc.getContext('2d'), gx=gc.getContext('2d');
+  const clip=ctx=>{ if(!mask.complete){ctx.clearRect(0,0,W,H);return}
+    ctx.globalCompositeOperation='destination-in'; ctx.drawImage(mask,0,0,W,H); ctx.globalCompositeOperation='source-over'; };
+  const layer=document.createElement('canvas'); layer.width=W; layer.height=H; const lx=layer.getContext('2d');
+  let dirty=true, lastDraw=0;
+  const newStreak=any=>{const z=Math.random();return{x:rnd(-20,W+20),y:any?rnd(-H,H):rnd(-80,-10),l:12+z*38,v:620+z*900,a:.13+z*.27,w:.7+z*.8}};
+  const streaks=Array.from({length:Math.round(W*H/520)},()=>newStreak(true));
+  const newStill=()=>({x:rnd(0,W),y:rnd(0,H),r:Math.random()<.12?rnd(1.2,2):rnd(.35,1.1)});
+  const still=[]; for(let i=0;i<W*H/420;i++) still.push(newStill());
+  const newSlider=any=>({x:rnd(4,W-4),y:any?rnd(0,H):rnd(-40,-5),r:rnd(1.7,2.9),v:0,pause:rnd(0,1.2),trail:0});
+  const sliders=[]; for(let i=0;i<Math.max(6,W*H/6500);i++) sliders.push(newSlider(true));
+  const trail=[];
+  function drop(ctx,x,y,r,a){
+    if(r<1.3){ ctx.globalAlpha=a*.55; ctx.fillStyle='rgba(8,16,34,.55)'; ctx.beginPath(); ctx.arc(x,y+r*.25,r,0,7); ctx.fill();
+      ctx.fillStyle='rgba(200,220,255,.6)'; ctx.beginPath(); ctx.arc(x,y-r*.2,r*.55,0,7); ctx.fill(); ctx.globalAlpha=1; return; }
+    const ry=r*1.12;
+    ctx.save(); ctx.globalAlpha=a;
+    ctx.beginPath(); ctx.ellipse(x,y,r,ry,0,0,7); ctx.clip();
+    if(scene.complete&&scene.naturalWidth){
+      const R=r*4.5; ctx.translate(x,y); ctx.scale(1,-1);
+      ctx.drawImage(scene,x0+x-R,y0+y-R*1.2,R*2,R*2,-r,-ry,r*2,ry*2);
+      ctx.setTransform(1,0,0,1,0,0);
+    }
+    const g=ctx.createRadialGradient(x,y-ry*.2,r*.2,x,y,r*1.1);
+    g.addColorStop(0,'rgba(255,255,255,0)'); g.addColorStop(.7,'rgba(10,18,40,.12)'); g.addColorStop(1,'rgba(5,10,25,.55)');
+    ctx.fillStyle=g; ctx.fillRect(x-r,y-ry,r*2,ry*2);
+    ctx.restore();
+    ctx.globalAlpha=a; ctx.strokeStyle='rgba(225,236,255,.55)'; ctx.lineWidth=Math.max(.6,r*.16);
+    ctx.beginPath(); ctx.ellipse(x,y,r*.92,ry*.92,0,3.5,5.6); ctx.stroke();
+    ctx.fillStyle='rgba(245,249,255,.95)';
+    ctx.beginPath(); ctx.ellipse(x+r*.05,y+ry*.55,r*.38,r*.18,0,0,7); ctx.fill();
+    ctx.beginPath(); ctx.arc(x-r*.35,y-ry*.4,r*.16,0,7); ctx.fill();
+    ctx.globalAlpha=1;
+  }
+  return function(dt,now){
+    sx.clearRect(0,0,W,H); sx.lineCap='round';
+    for(const s of streaks){
+      s.y+=s.v*dt; s.x+=s.v*dt*.05;
+      if(s.y-s.l>H) Object.assign(s,newStreak(false));
+      sx.lineWidth=s.w; sx.strokeStyle=`rgba(212,226,255,${s.a})`;
+      sx.beginPath(); sx.moveTo(s.x,s.y); sx.lineTo(s.x-s.l*.05,s.y-s.l); sx.stroke();
+    }
+    clip(sx);
+    if(dirty&&now-lastDraw>120){ lx.clearRect(0,0,W,H); for(const d of still) drop(lx,d.x,d.y,d.r,.9); dirty=false; lastDraw=now; }
+    if(Math.random()<dt*5){ still[(Math.random()*still.length)|0]=newStill(); dirty=true; }
+    gx.clearRect(0,0,W,H); gx.drawImage(layer,0,0);
+    for(let i=trail.length-1;i>=0;i--){const t=trail[i]; t.a-=dt*.12; if(t.a<=0){trail.splice(i,1);continue} drop(gx,t.x,t.y,t.r,t.a)}
+    for(const s of sliders){
+      if(s.pause>0){ s.pause-=dt; s.v*=.85; }
+      else{ s.v=Math.min(s.v+dt*rnd(60,180),rnd(45,130)*(s.r/2.6)); if(Math.random()<dt*.3) s.pause=rnd(.2,1.1); }
+      s.y+=s.v*dt; s.x+=Math.sin(s.y*.045+s.r)*dt*4;
+      s.trail+=s.v*dt;
+      if(s.trail>rnd(5,12)&&s.v>6){ s.trail=0; trail.push({x:s.x+rnd(-.4,.4),y:s.y-s.r*1.5,r:rnd(.4,Math.max(.6,s.r*.28)),a:.9}); s.r=Math.max(1.5,s.r-.02) }
+      for(let j=still.length-1;j>=0;j--){const d=still[j]; if(Math.abs(d.x-s.x)<s.r+d.r&&Math.abs(d.y-s.y)<s.r*1.2+d.r){ s.r=Math.min(3.4,s.r+d.r*.18); still[j]=newStill(); dirty=true; }}
+      if(s.y-s.r*2>H) Object.assign(s,newSlider(false));
+      gx.fillStyle='rgba(185,205,240,.09)'; gx.fillRect(s.x-s.r*.35,s.y-s.r*9,s.r*.7,s.r*8);
+      drop(gx,s.x,s.y,s.r,1);
+    }
+    clip(gx);   // glass only: never on the frames, plants, crystals or the room
+  };
+}
+const rains=[...document.querySelectorAll('.win:not(.sill)')].map(Rain);
+// the sill only mirrors the rain falling in the bottom of the left window
+(function(){
+  const win=document.querySelector('.win.sill'), [x0,y0,x1,y1]=WIN.S, W=x1-x0, H=y1-y0;
+  Object.assign(win.style,{left:x0+'px',top:y0+'px',width:W+'px',height:H+'px'});
+  const c=win.querySelector('canvas'); c.width=W; c.height=H; const ctx=c.getContext('2d');
+  const mask=new Image(); mask.src='assets/cs_glassS.png';
+  const src=document.querySelector('.win[data-k="L"] canvas.streaks');
+  rains.push(()=>{
+    if(!mask.complete) return;
+    ctx.clearRect(0,0,W,H); ctx.save(); ctx.globalAlpha=.5; ctx.translate(0,H); ctx.scale(1,-1);
+    ctx.drawImage(src,0,430,W,56,0,0,W,H); ctx.restore();
+    ctx.globalCompositeOperation='destination-in'; ctx.drawImage(mask,0,0,W,H); ctx.globalCompositeOperation='source-over';
+  });
+})();
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let last=performance.now();
+function frame(now){
+  const dt=reduced?0:Math.min(.05,(now-last)/1000); last=now;
+  const t=reduced?0:now/1000;
+  rains.forEach(r=>r(dt,now)); tailTick(t);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+/* after a while with nothing touched, a notebook on the shelf wiggles and asks to be opened */
+(function(){
+  const IDLE=9000, AGAIN=8000, touch=matchMedia('(hover:none)').matches, calm=matchMedia('(prefers-reduced-motion:reduce)').matches;
+  const tip=document.createElement('div'); tip.className='nudge'; tip.textContent=touch?'tap me':'click me'; document.body.appendChild(tip);
+  let timer=0, hideT=0, n=0, started=false;
+  const hide=()=>{ clearTimeout(hideT); tip.classList.remove('on'); };
+  const reset=()=>{ if(!started) return; clearTimeout(timer); hide(); timer=setTimeout(nudge,IDLE); };
+  const onScreen=el=>{ const r=el.getBoundingClientRect(); return r.width>0&&r.left>8&&r.right<innerWidth-8; };
+  function nudge(){
+    timer=setTimeout(nudge,AGAIN);
+    if(openKind||busy||document.hidden) return;
+    const els=ORDER.filter(k=>k!=='frame').map(k=>NB[k].el).filter(onScreen); if(!els.length) return;
+    const el=els[n++%els.length], v=el.querySelector('.nbv'), r=el.getBoundingClientRect();
+    if(!calm) v.animate([{transform:'translateY(0) rotate(0)'},{transform:'translateY(-8px) rotate(-2.6deg)',offset:.18},{transform:'translateY(-8px) rotate(2.4deg)',offset:.36},
+      {transform:'translateY(-6px) rotate(-1.8deg)',offset:.54},{transform:'translateY(-3px) rotate(1deg)',offset:.72},{transform:'translateY(0) rotate(0)'}],{duration:1100,easing:'ease-in-out'});
+    tip.style.left=(r.left+r.width/2)+'px'; tip.style.top=(r.top-16)+'px'; tip.classList.add('on');
+    clearTimeout(hideT); hideT=setTimeout(hide,2600);
+  }
+  ['pointermove','pointerdown','keydown','wheel','touchstart','scroll'].forEach(ev=>addEventListener(ev,reset,{passive:true,capture:true}));
+  curtainDone.then(()=>{ started=true; reset(); });
+})();
+
+document.querySelectorAll('.cv a.mail').forEach(a=>a.addEventListener('click',()=>{
+  const addr=a.getAttribute('href').slice(7);
+  const shown=()=>{ a.dataset.copied=''; clearTimeout(a._t); a._t=setTimeout(()=>delete a.dataset.copied,1800); };
+  const old=()=>{ const t=document.createElement('textarea'); t.value=addr; t.style.cssText='position:fixed;opacity:0'; document.body.appendChild(t); t.select();
+    try{ document.execCommand('copy'); shown(); }catch(_){} t.remove(); };
+  try{ navigator.clipboard.writeText(addr).then(shown,old); }catch(_){ old(); }
+}));
+
+/* open a section straight from the address, e.g. …/#merch */
+curtainDone.then(()=>{
+  const h=location.hash.slice(1); if(!h) return;
+  if(h==='cv') setTimeout(()=>go('frame'),200);
+  else { const i=NB.findIndex(n=>n.key===h); if(i>=0) setTimeout(()=>go(i),200); }
+});
+</script>
+</body>
+</html>
