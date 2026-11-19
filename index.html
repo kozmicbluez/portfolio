@@ -656,7 +656,7 @@ function markNav(k){ navLinks.forEach(a=>a.classList.toggle('cur',k!=null&&a.dat
 /* ===================== notebooks ===================== */
 const reader=document.getElementById('reader'), book=reader.querySelector('.book');
 const coverEl=book.querySelector('.cover'), frontImg=book.querySelector('.front img'), shade=book.querySelector('.cover .shade');
-const backcover=book.querySelector('.backcover'), coverBack=book.querySelector('.cover .back'), coverFront=book.querySelector('.cover .front');
+const backcover=book.querySelector('.backcover'), coverBack=book.querySelector('.cover .back'), coverFront=book.querySelector('.cover .front'), coverSheet=coverBack.querySelector('.sheet'), baseSheet=book.querySelector('.block .sheet.base');
 const leavesEl=book.querySelector('.leaves'), gutter=book.querySelector('.gutter'), rings=book.querySelector('.rings');
 const spikesEl=book.querySelector('.spikes'), strapEl=book.querySelector('.strap'), strapImg=strapEl.querySelector('.sf'), strapBack=strapEl.querySelector('.sb'), coverLab=book.querySelector('.front .lab');
 // disc-binding spikes, drawn once: 12 metal discs seen edge-on
@@ -889,7 +889,7 @@ async function openBook(i){
   await wait(coverEl.animate([
     {transform:`translateZ(${ZC()}px) rotateY(0deg)`},
     {transform:`translateZ(${ZTOP()}px) rotateY(-92deg)`,offset:.5},
-    {transform:'translateZ(.3px) rotateY(-180deg)'}
+    {transform:'translateZ(-2px) rotateY(-180deg)'}
   ],{duration:dur,easing:ease,fill:'forwards'}));
   coverFront.style.visibility='hidden';   // the outside of the open cover faces away: Safari would otherwise show it mirrored
   updatePager(); reader.classList.add('ready'); state='open'; busy=false;
@@ -897,7 +897,9 @@ async function openBook(i){
 
 const turning=new Set();
 function leafVis(){ leaves.forEach((lf,k)=>{ const on=k===spread-1||k===spread||turning.has(k)||turning.has(k-1)||turning.has(k+1); lf.classList.toggle('hid',!on); });
-  coverBack.style.visibility=spread>=1&&!turning.has(0)?'hidden':''; }   // once a page lies on it, the inside of the cover is hidden
+  // once a page lies on the inside of the cover, its paper is hidden (the cover itself stays); the last page only shows when it can be seen
+  coverSheet.style.visibility=spread>=1&&!turning.has(0)?'hidden':'';
+  baseSheet.style.visibility=spread>=LEAVES||turning.has(LEAVES-1)?'':'hidden'; }
 function flip(i,dir,dur=950){
   turning.add(i); leafVis();
   const lf=leaves[i], from=dir>0?0:-180, to=dir>0?-180:0;
@@ -956,7 +958,7 @@ async function closeBook(){
   if(nb.spikes) spikesEl.animate([{transform:spT(90)},{transform:spT(0)}],{duration:dur,easing:ease,fill:'forwards'});
   coverFront.style.visibility='';
   await wait(coverEl.animate([
-    {transform:'translateZ(.3px) rotateY(-180deg)'},
+    {transform:'translateZ(-2px) rotateY(-180deg)'},
     {transform:`translateZ(${ZTOP()}px) rotateY(-88deg)`,offset:.5},
     {transform:`translateZ(${ZC()}px) rotateY(0deg)`}
   ],{duration:dur,easing:ease,fill:'forwards'}));
