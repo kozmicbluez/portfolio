@@ -18,7 +18,7 @@ button{font:inherit;color:inherit}
 /* ---------- header ---------- */
 header{position:fixed;top:0;left:0;right:0;height:var(--hh);z-index:22;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
   column-gap:clamp(28px,4.4vw,76px);padding:0 24px;background:var(--ink)}
-header::after{content:"";position:absolute;left:0;right:0;top:100%;height:clamp(76px,11.5vh,124px);pointer-events:none;transition:opacity .6s;
+header::after{content:"";position:absolute;left:0;right:0;top:calc(100% + var(--stTop,0px));height:clamp(76px,11.5vh,124px);pointer-events:none;transition:opacity .6s;
   background:linear-gradient(var(--ink) 0%,rgba(4,3,3,.94) 8%,rgba(4,3,3,.84) 17%,rgba(4,3,3,.7) 27%,rgba(4,3,3,.54) 38%,rgba(4,3,3,.38) 50%,
     rgba(4,3,3,.24) 62%,rgba(4,3,3,.13) 74%,rgba(4,3,3,.055) 86%,rgba(4,3,3,0) 100%)}
 body.reading header::after{opacity:0}
@@ -71,8 +71,10 @@ nav a:hover::after,nav a:focus-visible::after,nav a.cur::after{transform:scaleX(
 .hole{pointer-events:none;z-index:1}
 .refl{pointer-events:none;z-index:1;opacity:0;transition:opacity .6s ease}
 .rf{position:absolute;pointer-events:none;z-index:2;transition:opacity .6s ease}
+.flr{position:absolute;top:816px;pointer-events:none;z-index:1}   /* the glossy floor's reflection of the pink and the fur notebooks and the frame, wherever they stand */
 .rf.gone{opacity:0}
 .refl.on{opacity:1}
+.refl{display:none}   /* the painted reflections are cleaned out of the picture itself; each notebook brings its own (.rf, .flr) */
 .nbv{position:absolute;inset:0;pointer-events:none;transform:translateY(0);
   filter:brightness(1) drop-shadow(0 0 0 rgba(255,222,186,0));
   transition:transform .55s cubic-bezier(.2,.7,.2,1),filter .55s ease;will-change:transform}
@@ -246,7 +248,7 @@ nav a:hover::after,nav a:focus-visible::after,nav a.cur::after{transform:scaleX(
 .tt .invh{background:#f4e7d3;border-radius:2px;box-shadow:0 2px 5px rgba(45,28,12,.22),0 10px 22px rgba(45,28,12,.16)}
 .invb{position:absolute;top:0;left:-100%;width:200%;height:100%;transform:translateZ(13px);pointer-events:none;display:none}
 .invb.on{display:block}
-.invb .snd{position:absolute;pointer-events:auto}
+
 /* a nudge after a while with nothing touched */
 .nbv{transform-origin:50% 100%}
 .nudge{position:fixed;left:0;top:0;z-index:19;pointer-events:none;padding:8px 15px 8px 17px;border-radius:999px;white-space:nowrap;
@@ -318,6 +320,32 @@ body.menu header::after{opacity:0}
 .tt .snd svg{display:block;width:62%;height:62%;margin:auto;fill:none;stroke:#6e5458;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tt .snd .spk{fill:#6e5458}
 .tt .snd .on{display:none} .tt .snd.is-on .on{display:inline} .tt .snd.is-on .off{display:none}
+/* video controls under a video: play/pause, a track you can drag, time, sound */
+.vbar{position:absolute;z-index:2;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;height:34px;padding:0 4px 0 2px;box-sizing:border-box;
+  border-radius:999px;background:rgba(255,250,246,.8);border:1px solid rgba(110,84,88,.45);box-shadow:0 1px 3px rgba(60,30,30,.18);pointer-events:auto;
+  font:400 11px/1 'Jost',sans-serif;color:#6e5458;-webkit-user-select:none;user-select:none}
+.vbar button{width:30px;height:30px;flex:none;border:0;padding:0;border-radius:50%;background:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s}
+.vbar button:hover{background:rgba(110,84,88,.1)}
+.vbar svg{width:18px;height:18px;fill:none;stroke:#6e5458;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.vbar .fc{fill:#6e5458;stroke:none}
+.vbar .mu .on{display:none} .vbar .mu.is-on .on{display:inline} .vbar .mu.is-on .off{display:none}
+.vbar .trk{position:relative;flex:1;min-width:40px;height:30px;cursor:pointer;touch-action:none;outline:none}
+.vbar .trk i{position:absolute;left:0;top:14px;height:2px;border-radius:2px}
+.vbar .trk .ln{right:0;background:rgba(110,84,88,.22)} .vbar .trk .bf{background:rgba(110,84,88,.34)} .vbar .trk .fl{background:#6e5458}
+.vbar .trk b{position:absolute;top:9px;left:0;width:12px;height:12px;margin-left:-6px;border-radius:50%;background:#6e5458;border:2px solid #fffaf6;box-sizing:border-box}
+.vbar .trk:focus-visible b{box-shadow:0 0 0 3px rgba(110,84,88,.3)}
+.vbar .tm{font-variant-numeric:tabular-nums;letter-spacing:.04em;white-space:nowrap;padding-right:2px}
+/* while the video loads: a spinner over its poster; if it can't load, a way to try again */
+.tt .vload{position:absolute;left:0;top:0;bottom:0;width:100%;z-index:1;display:none;flex-direction:column;align-items:center;justify-content:center;gap:9px;
+  background:rgba(244,231,211,.5);color:#6e5458;font:400 12px/1.2 'Jost',sans-serif;letter-spacing:.06em;pointer-events:none}
+.tt .vload[data-s=load],.tt .vload[data-s=err]{display:flex}
+.tt .vload .spin{width:26px;height:26px;border-radius:50%;border:2px solid rgba(110,84,88,.25);border-top-color:#6e5458;animation:vspin .9s linear infinite}
+.tt .vload[data-s=err] .spin{display:none}
+.tt .vload[data-s=err]{background:rgba(244,231,211,.8)}
+.tt .vload .rt{display:none;pointer-events:auto;cursor:pointer;padding:7px 14px;border-radius:999px;border:1px solid rgba(110,84,88,.45);background:rgba(255,250,246,.85);
+  color:#6e5458;font:inherit;letter-spacing:.06em}
+.tt .vload[data-s=err] .rt{display:inline-block}
+@keyframes vspin{to{transform:rotate(360deg)}}
 @media (prefers-reduced-motion:reduce){ .nbv,#frame,nav a{transition:none} }
 </style>
 </head>
@@ -395,12 +423,9 @@ body.menu header::after{opacity:0}
 <li>Designed and launched Kaspi Travel Business and a domestic stay-booking service as the sole designer, for a super app with 15M+ monthly users</li>
 <li>Redesigned the Travel homepage, increasing hotel search conversion by 39%; reduced customer incidents by 81% with a self-service post-booking experience</li></ul>
 <div class="job"><div class="h3" role="heading" aria-level="3">Independent Artist &amp; Designer <b>Self-employed</b></div><span class="when">2020 — present</span></div>
-<dl><dt>2020</dt><dd>Illustrated and printed a series of charity postcards and donated all proceeds to NeMolchi.kz, a foundation supporting survivors of violence</dd>
-<dt>2020</dt><dd>Designed a sticker pack for Depressnyachok, a podcast media project</dd>
-<dt>2021</dt><dd>Launched “bear me”, my first merch collection, designed, produced and sold independently via Instagram. Sewed the t-shirts myself, with print and embroidery made to my designs; did the photoshoots, stop-motion animation and social content</dd>
-<dt>2023</dt><dd>Released the second drop of “bear me”</dd>
-<dt>2025</dt><dd>Started “boltirik”, a clothing collection in progress: concept, sketches, graphics and a first t-shirt sample</dd>
-<dt>2026</dt><dd>Designed and built my portfolio website with AI tools: concept, art direction and texts</dd></dl>
+<ul><li>Created and run my own merch line: designed, produced and sold two drops via Instagram. Sewed the t-shirts myself, designed the prints and embroidery, shot the photos, stop-motion animation and social content</li>
+<li>Illustration commissions and collaborations: a sticker pack for a mental-health podcast; a charity postcard series with all proceeds donated to NeMolchi.kz, a foundation supporting survivors of violence</li>
+<li>Currently working on a full clothing collection, from concept and sketches to graphics and the first samples</li></ul>
 <div class="job"><div class="h3" role="heading" aria-level="3">Tattoo Artist <b>Tattoo studios, Almaty</b></div><span class="when">2019 — 2023</span></div>
 <ul><li>Created one-of-a-kind designs, from ironic naive minimalism to bright, colorful pieces, based on my own sketches and clients’ stories</li>
 <li>2021: ran my own studio for six months. Set up the space, managed two tattoo artists and day-to-day operations while tattooing</li></ul>
@@ -409,7 +434,6 @@ body.menu header::after{opacity:0}
 <p class="sk"><b>Product</b> End-to-end product design · User research · Prototyping · Team leadership</p>
 <p class="sk"><b>Tools</b> Procreate · Illustrator · Photoshop · Figma · Claude · ChatGPT · Gemini</p>
 <p class="sk"><b>Languages</b> <b>English</b> <i>B2 — Upper-Intermediate</i> &nbsp; <b>Russian</b> <i>Native</i> &nbsp; <b>Kazakh</b> <i>Native</i></p>
-<p class="sk"><b>Education</b> Self-taught</p>
 </div></div></div></div>
   <button class="x xbtn" aria-label="Put the frame back"></button>
 </div>
@@ -515,7 +539,8 @@ const NB=[
    lab:[1083,445,1204,526], clab:[17.2,14.6,73.6,39.9]}
 ];
 // where each thing stands. desktop: tattoo first, concepts third. phone: packed close together
-const RFBOT=[337,333,335,327];               // bottom row of each shelf picture, where its reflection starts
+const RFBOT=[337,333,335,327];
+const FLR={1:462,2:735,frame:1272};          // x where each floor reflection starts in the painting (the black notebooks barely show on the floor)               // bottom row of each shelf picture, where its reflection starts
 const ORDER=[2,1,0,3,'frame'];
 const SLOT={2:320,1:600,0:870.5,3:1142};    // desktop centres
 let LEAVES=12;                         // leaves of the open notebook: spreads = LEAVES + 1
@@ -537,6 +562,7 @@ NB.forEach((nb,i)=>{
   const hole=new Image(); hole.src=`assets/cs_hole${i}.webp`; hole.className='hole'; hole.alt=''; place(hole,nb.hole);
   const refl=new Image(); refl.src=`assets/cs_refl${i}.webp`; refl.className='refl on'; refl.alt=''; place(refl,nb.refl);   // hides the painted reflection
   const rf=new Image(); rf.src=`assets/cs_rf${i}.webp`; rf.className='rf'; rf.alt='';
+  if(FLR[i]){ const f=new Image(); f.src=`assets/cs_flr${i}.webp`; f.className='flr'; f.alt=''; stage.insertBefore(f,tailEl); nb.flr=f; }
   const el=document.createElement('div'); el.className='nb'; place(el,nb.box);
   el.innerHTML=`<div class="nbv"><img src="assets/cs_nb${i}.webp" alt=""><div class="lab">${nb.key}</div></div>`;
   const [bx,by]=nb.box, [lx0,ly0,lx1,ly1]=nb.lab;
@@ -550,6 +576,7 @@ NB.forEach((nb,i)=>{
   Object.assign(nb,{el,hole,refl,rf,w:nb.box[2]-nb.box[0],h:nb.box[3]-nb.box[1]});
   new Image().src=`assets/cs_cover${i}.webp`;
 });
+const frameFlr=new Image(); frameFlr.src='assets/cs_flrF.webp'; frameFlr.className='flr'; frameFlr.alt=''; stage.insertBefore(frameFlr,tailEl);
 const fhole=new Image(); fhole.src='assets/cs_framehole.webp'; fhole.className='hole'; fhole.alt=''; place(fhole,FHOLE); stage.insertBefore(fhole,tailEl);
 const frameEl=new Image(); frameEl.src='assets/cs_frame_cv.webp'; frameEl.id='frame'; frameEl.alt='picture frame: cv';
 frameEl.tabIndex=0; frameEl.setAttribute('role','button'); place(frameEl,FRAME); stage.appendChild(frameEl);
@@ -585,8 +612,10 @@ function arrange(phone){
     const x=Math.round(centres[i]-nb.w/2); nb.x=x;
     nb.el.style.left=x+'px';
     Object.assign(nb.rf.style,{left:x+'px',top:(nb.box[1]+RFBOT[i]-1)+'px',width:nb.w+'px'});
+    if(nb.flr) nb.flr.style.left=(x+FLR[i]-nb.box[0])+'px';
   });
   frameEl.style.left=Math.round(centres.frame-(FRAME[2]-FRAME[0])/2)+'px';
+  frameFlr.style.left=(Math.round(centres.frame-(FRAME[2]-FRAME[0])/2)+FLR.frame-FRAME[0])+'px';
   STOPS=ORDER.map(k=>centres[k]);
 }
 function layout(){
@@ -597,10 +626,14 @@ function layout(){
   stage.style.transform=`scale(${s})`;
   sizer.style.width=Math.max(W,SW*s)+'px';
   stage.style.left=Math.max(0,(W-SW*s)/2)+'px';
-  const top=phone&&W/H<1.15?Math.max(0,(H-SH*s)/2):0;
+  // tall phones: the picture sits close under the header, and the header's soft fade starts where the picture starts
+  const top=phone&&W/H<1.15?Math.round(Math.max(0,(H-SH*s)*.15)):0;
+  document.documentElement.style.setProperty('--stTop',Math.max(0,top-2)+'px');
   stage.style.top=top+'px';
   const hh=vp.getBoundingClientRect().top, bottom=Math.min(H,top+SH*s);
   const fb=document.getElementById('fadeB'); fb.style.top=(hh+bottom-fb.offsetHeight)+'px';
+  // …and the shelf pager moves up into the space under the picture instead of staying down at the very bottom
+  shelfPager.style.bottom=phone?`calc(${Math.round(Math.max(42,(H-bottom)/2-30))}px + env(safe-area-inset-bottom))`:'';
   stage.querySelectorAll('.edge').forEach(e=>e.style.display=SW*s<W-2?'block':'none');
   const left=Math.max(0,(W-SW*s)/2);
   if(phone&&SW*s>W){
@@ -643,10 +676,27 @@ function revealOnShelf(k){
   vp.scrollLeft=stageLeft+STOPS[n]*scale-vp.clientWidth/2;
   requestAnimationFrame(()=>vp.style.scrollSnapType=snap);
 }
+// phone: the shelf glides sideways to the next notebook, so you can see which one is taken off it
+function glideShelf(k){
+  if(!STOPS.length||vp.scrollWidth<=vp.clientWidth+2) return Promise.resolve();
+  const n=ORDER.indexOf(k); if(n<0) return Promise.resolve();
+  const from=vp.scrollLeft, max=vp.scrollWidth-vp.clientWidth;
+  const to=Math.max(0,Math.min(max,stageLeft+STOPS[n]*scale-vp.clientWidth/2)), dist=to-from;
+  if(Math.abs(dist)<4) return Promise.resolve();
+  const dur=Math.min(1000,Math.max(750,Math.abs(dist)*1.8)), snap=vp.style.scrollSnapType, t0=performance.now();
+  const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+  vp.style.scrollSnapType='none';
+  return new Promise(res=>{
+    const step=now=>{ const t=Math.min(1,(now-t0)/dur); vp.scrollLeft=from+dist*ease(t);
+      if(t<1) requestAnimationFrame(step); else { vp.style.scrollSnapType=snap; setTimeout(res,140); } };
+    requestAnimationFrame(step);
+  });
+}
 async function go(k){
   if(busy){ queued=k; return; }     // a tap during an animation is kept, not lost
   if(openKind==='book'){ if(k===cur) return; await closeBook(); }
   else if(openKind==='frame'){ if(k==='frame') return; await closeFrame(); }
+  busy=true; await glideShelf(k); busy=false;
   if(k==='frame') await openFrame(); else await openBook(k);
   if(queued!==null){ const q=queued; queued=null; if(q!==(openKind==='frame'?'frame':cur)) go(q); }
 }
@@ -741,6 +791,12 @@ function fillPages(i){
   // the poster sits under each video, so there is always a picture even before the video loads
   book.querySelectorAll('.tt video[poster]').forEach(v=>{ v.classList.add('off');
     Object.assign(v.parentElement.style,{backgroundImage:`url("${v.getAttribute('poster')}")`,backgroundSize:'cover',backgroundPosition:'center'}); });
+  book.querySelectorAll('.sheet .tt video').forEach(wireVideo);
+  book.querySelectorAll('.sheet .tt .snd').forEach(b=>{
+    const v=b.closest('.tt').querySelector('video'); if(!v){ b.remove(); return; }
+    const bar=makeBar(()=>v); Object.assign(bar.style,{left:b.style.left,top:b.style.top,width:'86%'});
+    v._bars.push(bar); b.replaceWith(bar); bar.upd(); });
+  const iv=book.querySelector('video.inv-video'); if(iv&&!MOB){ iv._bars.push(invBar); invBar.upd(); }
   invWire();
 }
 function syncMedia(){
@@ -750,19 +806,76 @@ function syncMedia(){
     const leaf=v.closest('.leaf'), onBack=!!v.closest('.face.back'), onCover=!!v.closest('.cover');
     let s=onCover?0:leaf?leaves.indexOf(leaf)+(onBack?1:0):LEAVES;
     const isLeft=onCover||onBack, sideOk=!MOB||(page%2===0)===isLeft;   // phone: only the page that's showing
-    const show=s===vis&&sideOk&&reader.classList.contains('active');
-    if(show){ const p=v.play(); p&&p.catch(()=>{}); } else v.pause();
+    const show=state==='open'&&s===vis&&sideOk&&reader.classList.contains('active');   // nothing plays while a notebook opens or closes
+    vidWant(v,show);
     v.classList.toggle('off',!(show&&turning.size===0));   // while a page turns, its poster (painted under the video) stands in
   });
 }
-// the sound button switches the video on its page between muted and with sound
-book.addEventListener('click',e=>{
-  const b=e.target.closest('.tt .snd'); if(!b) return;
-  e.stopPropagation();
-  const v=b.closest('.tt').querySelector('video'); if(!v) return;
-  v.muted=!v.muted; if(!v.muted){ const p=v.play(); p&&p.catch(()=>{}); }
-  b.classList.toggle('is-on',!v.muted); b.setAttribute('aria-pressed',String(!v.muted)); b.setAttribute('aria-label',v.muted?'Sound on':'Sound off');
-});
+// ---------- video controls: play/pause, a track you can drag, time and sound; a loader while the video loads ----------
+const VICON={play:'<svg viewBox="0 0 24 24" aria-hidden="true"><path class="fc" d="M8 5.5v13l10.5-6.5z"/></svg>',
+  pause:'<svg viewBox="0 0 24 24" aria-hidden="true"><path class="fc" d="M7 5.5h3.4v13H7zM13.6 5.5H17v13h-3.4z"/></svg>',
+  snd:'<svg viewBox="0 0 24 24" aria-hidden="true"><path class="fc" d="M4 9.5h3.2L11.5 6v12l-4.3-3.5H4z"/><path class="off" d="M15 9.5l5 5M20 9.5l-5 5"/><path class="on" d="M14.6 9.3a3.8 3.8 0 0 1 0 5.4M17 7a7 7 0 0 1 0 10"/></svg>'};
+const fmtT=s=>!isFinite(s)||s<0?'0:00':Math.floor(s/60)+':'+String(Math.floor(s%60)).padStart(2,'0');
+function makeBar(getV){
+  const bar=document.createElement('div'); bar.className='vbar';
+  bar.innerHTML=`<button class="pp" type="button" aria-label="Pause">${VICON.pause}</button>`+
+    `<div class="trk" role="slider" tabindex="0" aria-label="Seek" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i class="ln"></i><i class="bf"></i><i class="fl"></i><b></b></div>`+
+    `<span class="tm">0:00 / 0:00</span><button class="mu" type="button" aria-label="Sound on" aria-pressed="false">${VICON.snd}</button>`;
+  const pp=bar.querySelector('.pp'), trk=bar.querySelector('.trk'), bf=trk.querySelector('.bf'), fl=trk.querySelector('.fl'), th=trk.querySelector('b'),
+        tm=bar.querySelector('.tm'), mu=bar.querySelector('.mu');
+  let drag=false, icon='pause';
+  bar.upd=()=>{ const v=getV(); if(!v) return;
+    const d=v.duration||0, t=v.currentTime||0, pc=d?Math.min(100,t/d*100):0;
+    fl.style.width=pc+'%'; th.style.left=pc+'%'; trk.setAttribute('aria-valuenow',String(Math.round(pc)));
+    let b=0; try{ if(d&&v.buffered.length) b=v.buffered.end(v.buffered.length-1)/d*100; }catch(_){} bf.style.width=Math.min(100,b)+'%';
+    tm.textContent=fmtT(t)+' / '+fmtT(d);
+    const want=v.paused?'play':'pause'; if(want!==icon){ icon=want; pp.innerHTML=VICON[want]; pp.setAttribute('aria-label',want==='play'?'Play':'Pause'); }
+    mu.classList.toggle('is-on',!v.muted); mu.setAttribute('aria-pressed',String(!v.muted)); mu.setAttribute('aria-label',v.muted?'Sound on':'Sound off'); };
+  // taps and drags on the controls never turn the page or close the notebook
+  ['click','pointerdown','pointerup','touchstart','touchmove','touchend'].forEach(ev=>bar.addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
+  pp.addEventListener('click',()=>{ const v=getV(); if(!v) return;
+    if(v.paused){ v._userPaused=false; vidWant(v,true); } else { v._userPaused=true; v.pause(); } bar.upd(); });
+  mu.addEventListener('click',()=>{ const v=getV(); if(!v) return;
+    v.muted=!v.muted; if(!v.muted&&v.paused){ v._userPaused=false; vidWant(v,true); } bar.upd(); });
+  const seek=e=>{ const v=getV(); if(!v||!v.duration) return; const r=trk.getBoundingClientRect();
+    v.currentTime=Math.max(0,Math.min(1,(e.clientX-r.left)/r.width))*v.duration*.999; bar.upd(); };
+  trk.addEventListener('pointerdown',e=>{ drag=true; try{ trk.setPointerCapture(e.pointerId); }catch(_){} seek(e); });
+  trk.addEventListener('pointermove',e=>{ if(drag) seek(e); });
+  ['pointerup','pointercancel','lostpointercapture'].forEach(ev=>trk.addEventListener(ev,()=>drag=false));
+  trk.addEventListener('keydown',e=>{ const v=getV(); if(!v||!v.duration) return;
+    if(e.key==='ArrowRight'||e.key==='ArrowLeft'){ e.preventDefault(); e.stopPropagation(); v.currentTime=Math.max(0,Math.min(v.duration*.999,v.currentTime+(e.key==='ArrowRight'?2:-2))); bar.upd(); } });
+  return bar;
+}
+// each video gets a loader over its poster and tells its control bars when anything changes
+function wireVideo(v){
+  v._bars=[]; v._want=false; v._userPaused=false;
+  const ov=document.createElement('div'); ov.className='vload';
+  ov.innerHTML='<i class="spin"></i><span class="msg">loading…</span><button class="rt" type="button">retry</button>';
+  if(v.closest('.invh')&&!MOB) ov.style.width=(100/1.91629).toFixed(2)+'%';   // the invitation on a computer: the video is its left half
+  v.parentElement.appendChild(ov);
+  const msg=ov.querySelector('.msg');
+  v._st=st=>{ ov.dataset.s=st; msg.textContent=st==='err'?'couldn\u2019t load the video':'loading…'; if(st!=='load') clearTimeout(v._to); };
+  v._arm=()=>{ clearTimeout(v._to); if(v.readyState<3) v._st('load');
+    v._to=setTimeout(()=>{ if(v._want&&!v._userPaused&&v.readyState<3) v._st('err'); },12000); };
+  const upd=()=>v._bars.forEach(b=>b.upd());
+  ['timeupdate','progress','play','pause','volumechange','loadedmetadata','durationchange','seeked'].forEach(ev=>v.addEventListener(ev,upd));
+  v.addEventListener('play',()=>{ const loop=()=>{ upd(); if(!v.paused&&v.isConnected) requestAnimationFrame(loop); }; requestAnimationFrame(loop); });
+  v.addEventListener('waiting',()=>{ if(v._want&&!v._userPaused) v._arm(); });
+  ['playing','canplay','canplaythrough','seeked'].forEach(ev=>v.addEventListener(ev,()=>{ if(v.readyState>=3&&ov.dataset.s==='load') v._st(''); }));
+  v.addEventListener('error',()=>{ if(v._want) v._st('err'); });
+  ov.querySelector('.rt').addEventListener('click',e=>{ e.stopPropagation(); v._userPaused=false; v._st('load'); v.load(); vidWant(v,true); });
+  ['pointerdown','touchstart','touchend'].forEach(ev=>ov.querySelector('.rt').addEventListener(ev,e=>e.stopPropagation(),{passive:true}));
+}
+// play the video on the page that is showing (unless you paused it), pause the rest
+function vidWant(v,show){
+  if(!v._st) return;
+  v._want=show;
+  if(!show){ v.pause(); v._st(''); return; }
+  if(v._userPaused){ v._st(''); return; }
+  v._arm();
+  const p=v.play();
+  p&&p.catch(e=>{ if(e&&e.name==='NotAllowedError'){ v._st(''); v._bars.forEach(b=>b.upd()); } });   // autoplay blocked (e.g. Low Power Mode): the play button is there
+}
 
 // ---------- art, spread 3: the wedding invitation lies across the spread from the start ----------
 // the left half is the video itself, the right half a canvas copying its frames, so it turns with the pages like paper
@@ -777,20 +890,14 @@ function invWire(){
 }
 // the sound button sits at the bottom, over the spine (computer only; on a phone it is on the page under the video)
 const invB=document.createElement('div'); invB.className='tt invb';
-invB.innerHTML='<button class="snd" type="button" aria-label="Sound on" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="spk" d="M4 9.5h3.2L11.5 6v12l-4.3-3.5H4z"/><path class="off" d="M15 9.5l5 5M20 9.5l-5 5"/><path class="on" d="M14.6 9.3a3.8 3.8 0 0 1 0 5.4M17 7a7 7 0 0 1 0 10"/></svg></button>';
+const invBar=makeBar(()=>book.querySelector('video.inv-video')); invB.appendChild(invBar);
 book.querySelector('.block').appendChild(invB);
-const invBtn=invB.querySelector('.snd');
-invBtn.addEventListener('click',e=>{
-  e.stopPropagation(); const v=book.querySelector('video.inv-video'); if(!v) return;
-  v.muted=!v.muted; if(!v.muted){ const p=v.play(); p&&p.catch(()=>{}); }
-  invBtn.classList.toggle('is-on',!v.muted); invBtn.setAttribute('aria-pressed',String(!v.muted)); invBtn.setAttribute('aria-label',v.muted?'Sound on':'Sound off');
-});
 function invUpdate(off){
   const on=!off&&!MOB&&state!=='closed'&&NB[cur]&&NB[cur].key==='art'&&spread===2;
   invB.classList.toggle('on',on);
   if(on){
-    const bl=book.querySelector('.block'), bw=bl.offsetWidth, bh=bl.offsetHeight, btn=Math.max(34,bw*.075);
-    Object.assign(invBtn.style,{left:'50%',top:`calc(${(INV_BAND[1]*100).toFixed(3)}% + ${(btn*.78).toFixed(1)}px)`,width:btn.toFixed(1)+'px'});
+    const bl=book.querySelector('.block'), bw=bl.offsetWidth, bh=bl.offsetHeight;
+    Object.assign(invBar.style,{left:'50%',top:`calc(${(INV_BAND[1]*100).toFixed(3)}% + 32px)`,width:Math.round(Math.min(420,bw*.8))+'px'}); invBar.upd();
     const y0=bl.offsetTop+INV_BAND[0]*bh-2, y1=bl.offsetTop+INV_BAND[1]*bh+2;   // the coils pass under the invitation
     const m=`linear-gradient(#000 ${y0}px,transparent ${y0}px,transparent ${y1}px,#000 ${y1}px)`;
     rings.style.webkitMaskImage=m; rings.style.maskImage=m;
@@ -892,7 +999,7 @@ async function openBook(i){
     {transform:'translateZ(-2px) rotateY(-180deg)'}
   ],{duration:dur,easing:ease,fill:'forwards'}));
   coverFront.style.visibility='hidden';   // the outside of the open cover faces away: Safari would otherwise show it mirrored
-  updatePager(); reader.classList.add('ready'); state='open'; busy=false;
+  updatePager(); reader.classList.add('ready'); state='open'; busy=false; syncMedia();
 }
 
 const turning=new Set();
@@ -941,7 +1048,7 @@ function turnNow(dir){
 async function closeBook(){
   if(state!=='open') return; invUpdate(true); state='busy'; busy=true;
   const nb=NB[cur], g=geo;
-  reader.classList.remove('ready'); book.querySelectorAll('.tt video').forEach(v=>v.pause());
+  reader.classList.remove('ready'); book.querySelectorAll('.tt video').forEach(v=>{ v.pause(); vidWant(v,false); });
   if(spread>0){
     const ps=[]; for(let i=spread-1,k=0;i>=0;i--,k++) ps.push(new Promise(r=>setTimeout(()=>flip(i,-1,700).then(r),k*55)));
     await Promise.all(ps); spread=0; page=0; leafVis();
