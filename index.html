@@ -133,6 +133,9 @@ nav a:hover::after,nav a:focus-visible::after,nav a.cur::after{transform:scaleX(
 .leaf{position:absolute;inset:0;transform-origin:0 50%;transform-style:preserve-3d}
 .face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden}
 .face.back{transform:rotateY(180deg)}
+.face.front{transform:translateZ(.01px)}
+.face *,.cover .front *,.cover .back *{-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.leaf.hid{visibility:hidden}
 .fshade{position:absolute;inset:0;pointer-events:none;opacity:0;border-radius:inherit}
 .face.front .fshade{background:linear-gradient(90deg,rgba(30,18,8,.55),rgba(30,18,8,.15) 60%,rgba(30,18,8,.3))}
 .face.back .fshade{background:linear-gradient(270deg,rgba(30,18,8,.55),rgba(30,18,8,.15) 60%,rgba(30,18,8,.3))}
@@ -833,7 +836,7 @@ async function openBook(i){
   const fur='url(assets/cs_fur.jpg)';
   backcover.style.background=nb.inner==='fur'?`${fur} center/cover, ${nb.color}`:nb.color;
   coverBack.style.background=nb.inner==='fur'?`linear-gradient(rgba(0,0,0,.08),rgba(0,0,0,.08)), ${fur} center/cover`:nb.inner;
-  buildLeaves(); fillPages(i);
+  buildLeaves(); fillPages(i); turning.clear(); leafVis();
   [gutter,rings].forEach(e=>{e.getAnimations().forEach(a=>a.cancel()); e.style.opacity=0});
   const spc=book.querySelector('.spc'); spc.getAnimations().forEach(a=>a.cancel()); spc.style.opacity=1;   // the photo's coils, exactly as on the shelf
   coverEl.style.transform=`translateZ(${ZC()}px) rotateY(0deg)`;
@@ -881,7 +884,10 @@ async function openBook(i){
   updatePager(); reader.classList.add('ready'); state='open'; busy=false;
 }
 
+const turning=new Set();
+function leafVis(){ leaves.forEach((lf,k)=>{ const on=k===spread-1||k===spread||turning.has(k)||turning.has(k-1)||turning.has(k+1); lf.classList.toggle('hid',!on); }); }
 function flip(i,dir,dur=950){
+  turning.add(i); leafVis();
   const lf=leaves[i], from=dir>0?0:-180, to=dir>0?-180:0;
   const z0=dir>0?ZU(i):ZF(i), z1=dir>0?ZF(i):ZU(i);
   const [fs,bs]=lf.querySelectorAll('.fshade');
@@ -893,7 +899,7 @@ function flip(i,dir,dur=950){
   const lightFirst=dir>0?fs:bs, lightSecond=dir>0?bs:fs;
   lightFirst.animate([{opacity:0},{opacity:.85,offset:.5},{opacity:.85}],{duration:dur*.5,easing:'ease-in'});
   lightSecond.animate([{opacity:.85},{opacity:0}],{duration:dur*.5,delay:dur*.5,easing:'ease-out',fill:'backwards'});
-  a.finished.then(()=>{ lf.style.transform=`translateZ(${z1}px) rotateY(${to}deg)`; a.cancel(); });
+  a.finished.then(()=>{ lf.style.transform=`translateZ(${z1}px) rotateY(${to}deg)`; a.cancel(); turning.delete(i); leafVis(); });
   return a.finished;
 }
 function turnNow(dir){
@@ -924,7 +930,7 @@ async function closeBook(){
   reader.classList.remove('ready'); book.querySelectorAll('.tt video').forEach(v=>v.pause());
   if(spread>0){
     const ps=[]; for(let i=spread-1,k=0;i>=0;i--,k++) ps.push(new Promise(r=>setTimeout(()=>flip(i,-1,700).then(r),k*55)));
-    await Promise.all(ps); spread=0; page=0;
+    await Promise.all(ps); spread=0; page=0; leafVis();
   }
   const dur=1150;
   gutter.animate([{opacity:1},{opacity:0}],{duration:300,fill:'forwards'});
